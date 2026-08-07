@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>రఘువంశము — Raghuvamsha Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FBF6EC;
+    --cream-panel:#F4EDE0;
+    --maroon:#8C1F28;
+    --indigo:#1E3A5F;
+    --gold:#B8862E;
+    --ink:#2B2620;
+    --ink-soft:#5A5347;
+    --line:#E4D9C3;
+    --sloka-font-size:26px;
+    --shadow: 0 2px 10px rgba(43,38,32,0.08);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: contain;
+  }
+  body{
+    display:flex; flex-direction:column; height:100vh; height:100dvh;
+  }
+
+  /* ---------- Manuscript texture header bar ---------- */
+  .app-header{
+    flex:0 0 auto;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#FDF9F0,var(--cream));
+  }
+  .app-title{
+    font-family:'Noto Serif Telugu',serif;
+    font-size:18px; font-weight:700; color:var(--maroon);
+    display:flex; align-items:center; gap:8px;
+  }
+  .app-title .divider-dot{
+    width:5px;height:5px;border-radius:50%;background:var(--gold);
+  }
+  .header-controls{display:flex; align-items:center; gap:6px;}
+  .icon-btn{
+    background:none; border:1px solid var(--line); border-radius:8px;
+    width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; color:var(--ink-soft); transition:.15s;
+  }
+  .icon-btn:hover, .icon-btn:active{ background:var(--cream-panel); color:var(--maroon); border-color:var(--gold);}
+  .icon-btn svg{width:17px;height:17px;}
+
+  /* ---------- Font size popover ---------- */
+  .fontsize-pop{
+    position:absolute; top:52px; right:14px; background:#fff; border:1px solid var(--line);
+    border-radius:10px; box-shadow:var(--shadow); padding:8px; display:none; gap:6px; z-index:40;
+  }
+  .fontsize-pop.open{display:flex;}
+  .fontsize-pop button{
+    width:32px;height:32px;border-radius:7px;border:1px solid var(--line);background:var(--cream);
+    font-size:15px; cursor:pointer; color:var(--maroon); font-weight:600;
+  }
+
+  /* ---------- Search overlay ---------- */
+  .search-overlay{
+    position:fixed; inset:0; background:rgba(43,38,32,0.35); z-index:60;
+    display:none; align-items:flex-start; justify-content:center; padding-top:14vh;
+  }
+  .search-overlay.open{display:flex;}
+  .search-box{
+    background:#fff; width:min(92vw,480px); border-radius:14px; box-shadow:var(--shadow);
+    max-height:70vh; display:flex; flex-direction:column; overflow:hidden;
+  }
+  .search-input-row{ display:flex; align-items:center; gap:8px; padding:12px; border-bottom:1px solid var(--line);}
+  .search-input-row input{
+    flex:1; border:none; outline:none; font-size:17px; font-family:'Noto Sans Telugu','Inter',sans-serif;
+    background:transparent; color:var(--ink);
+  }
+  .search-results{ overflow-y:auto; }
+  .search-result{
+    padding:12px 14px; border-bottom:1px solid var(--line); cursor:pointer;
+  }
+  .search-result:hover{background:var(--cream-panel);}
+  .search-result .meta{font-size:11px; color:var(--gold); font-weight:600; letter-spacing:.03em; text-transform:uppercase; margin-bottom:3px;}
+  .search-result .snippet{font-family:'Noto Sans Telugu',sans-serif; font-size:15px; color:var(--ink); line-height:1.5;}
+  .search-result mark{background:#F3D9A6; color:var(--maroon); border-radius:2px;}
+  .search-empty{padding:24px; text-align:center; color:var(--ink-soft); font-size:14px;}
+
+  /* ---------- Sloka fixed panel ---------- */
+  .sloka-wrap{
+    flex:0 0 auto;
+    padding:18px 20px 16px;
+    background:
+      radial-gradient(ellipse at top left, rgba(184,134,46,0.06), transparent 60%),
+      var(--cream);
+    border-bottom:2px solid var(--gold);
+    position:relative;
+  }
+  .sloka-meta{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;
+  }
+  .sloka-meta .ref{
+    font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-soft); font-weight:600;
+  }
+  .sloka-meta .ref b{ color:var(--maroon); font-weight:700; }
+  .star-btn{
+    background:none; border:none; cursor:pointer; padding:2px; color:var(--line-dark,#C9BB9C);
+    display:flex; align-items:center;
+  }
+  .star-btn svg{width:20px;height:20px; transition:.15s;}
+  .star-btn.saved svg{ fill:var(--gold); stroke:var(--gold); }
+  .star-btn:not(.saved) svg{ fill:none; stroke:var(--ink-soft); }
+
+  .sloka-text{
+    font-family:'Noto Serif Telugu',serif;
+    font-size:var(--sloka-font-size);
+    line-height:1.9;
+    text-align:center;
+  }
+  .sloka-line{ padding:1px 0; }
+  .sloka-line.line-a{ color:var(--maroon); }
+  .sloka-line.line-b{ color:var(--indigo); }
+
+  /* ---------- Topic icon row ---------- */
+  .topic-row{
+    flex:0 0 auto;
+    display:flex; gap:4px; padding:10px 10px 0;
+    overflow-x:auto; scrollbar-width:none; background:var(--cream);
+    border-bottom:1px solid var(--line);
+  }
+  .topic-row::-webkit-scrollbar{display:none;}
+  .topic-btn{
+    flex:1 0 auto; min-width:74px;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:8px 6px 10px; background:none; border:none; cursor:pointer;
+    color:var(--ink-soft); border-bottom:3px solid transparent;
+    transition:.15s;
+  }
+  .topic-btn svg{width:22px;height:22px;}
+  .topic-btn .label{font-size:11px; font-weight:600; letter-spacing:.01em;}
+  .topic-btn .label-te{font-size:10px; font-family:'Noto Sans Telugu',sans-serif; color:var(--ink-soft); opacity:.75;}
+  .topic-btn.active{ color:var(--maroon); border-bottom-color:var(--maroon); }
+  .topic-btn.active .label-te{color:var(--maroon);}
+
+  /* ---------- Content panel (swipeable) ---------- */
+  .content-panel{
+    flex:1 1 auto; overflow-y:auto; padding:20px 18px 28px;
+    background:var(--cream-panel);
+  }
+  .content-inner{
+    font-family:'Noto Sans Telugu',sans-serif;
+    font-size:17px; line-height:1.85; color:var(--ink);
+    white-space:pre-line;
+    max-width:640px; margin:0 auto;
+    animation: fadein .18s ease;
+  }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+  .content-empty{ color:var(--ink-soft); font-style:italic; text-align:center; margin-top:30px; }
+  .swipe-hint{
+    text-align:center; font-size:11px; color:var(--ink-soft); opacity:.6; margin-top:22px;
+  }
+
+  /* ---------- Footer nav ---------- */
+  .app-footer{
+    flex:0 0 auto; display:flex; border-top:1px solid var(--line);
+    background:#fff;
+  }
+  .foot-btn{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:9px 4px 8px; background:none; border:none; cursor:pointer; color:var(--ink-soft);
+    -webkit-user-select:none; user-select:none;
+  }
+  .foot-btn svg{width:21px;height:21px;}
+  .foot-btn .flabel{font-size:11px; font-weight:600;}
+  .foot-btn:disabled{opacity:.3; cursor:default;}
+  .foot-btn:not(:disabled):active{color:var(--maroon);}
+  .foot-btn.home{position:relative;}
+
+  /* ---------- Bookmarks drawer ---------- */
+  .bm-drawer{
+    position:fixed; inset:0; background:rgba(43,38,32,0.35); z-index:70;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .bm-drawer.open{display:flex;}
+  .bm-sheet{
+    background:#fff; width:100%; max-width:560px; border-radius:16px 16px 0 0;
+    max-height:70vh; display:flex; flex-direction:column; box-shadow:var(--shadow);
+  }
+  .bm-sheet-head{ padding:14px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between;}
+  .bm-sheet-head h3{margin:0; font-size:15px; color:var(--maroon);}
+  .bm-sheet-head button{background:none;border:none;font-size:20px;color:var(--ink-soft);cursor:pointer;}
+  .bm-list{overflow-y:auto; padding:6px 0;}
+  .bm-item{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:11px 16px; border-bottom:1px solid var(--line); cursor:pointer;
+  }
+  .bm-item:hover{background:var(--cream-panel);}
+  .bm-item .bm-ref{font-size:13px; font-weight:600; color:var(--ink);}
+  .bm-item .bm-snip{font-size:12px; color:var(--ink-soft); font-family:'Noto Sans Telugu',sans-serif; margin-top:2px; max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .bm-item .bm-remove{background:none;border:none;color:#B85C5C;cursor:pointer;font-size:16px; padding:6px;}
+  .bm-empty{padding:26px; text-align:center; color:var(--ink-soft); font-size:13px;}
+
+  .toast{
+    position:fixed; bottom:70px; left:50%; transform:translateX(-50%) translateY(10px);
+    background:var(--ink); color:#fff; padding:8px 16px; border-radius:20px; font-size:13px;
+    opacity:0; pointer-events:none; transition:.2s; z-index:80;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important; transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="app-title"><span>రఘువంశము</span><span class="divider-dot"></span><span style="font-size:13px;color:var(--ink-soft);font-family:Inter;font-weight:500;">Raghuvamsha</span></div>
+    <div class="header-controls">
+      <button class="icon-btn" id="searchOpenBtn" title="Search" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <div style="position:relative;">
+        <button class="icon-btn" id="fontOpenBtn" title="Font size" aria-label="Font size">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+        </button>
+        <div class="fontsize-pop" id="fontPop">
+          <button id="fontDec">A-</button>
+          <button id="fontReset">A</button>
+          <button id="fontInc">A+</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- SLOKA -->
+  <section class="sloka-wrap" id="slokaWrap">
+    <div class="sloka-meta">
+      <span class="ref" id="slokaRef">Sarga <b>—</b> · Verse <b>—</b></span>
+      <button class="star-btn" id="starBtn" title="Save bookmark" aria-label="Save bookmark">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linejoin="round"><polygon points="12 2 15.09 8.63 22 9.24 16.5 14.14 18.18 21 12 17.27 5.82 21 7.5 14.14 2 9.24 8.91 8.63 12 2"/></svg>
+      </button>
+    </div>
+    <div class="sloka-text" id="slokaText"></div>
+  </section>
+
+  <!-- TOPIC ICONS -->
+  <nav class="topic-row" id="topicRow"></nav>
+
+  <!-- CONTENT -->
+  <main class="content-panel" id="contentPanel">
+    <div class="content-inner" id="contentInner"></div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="app-footer">
+    <button class="foot-btn" id="prevBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span class="flabel">Previous</span>
+    </button>
+    <button class="foot-btn home" id="homeBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+      <span class="flabel">Home</span>
+    </button>
+    <button class="foot-btn" id="nextBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+      <span class="flabel">Next</span>
+    </button>
+  </footer>
+
+  <!-- SEARCH OVERLAY -->
+  <div class="search-overlay" id="searchOverlay">
+    <div class="search-box">
+      <div class="search-input-row">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8a8071" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="శ్లోకంలో వెతకండి... (search)" autocomplete="off">
+        <button class="icon-btn" id="searchCloseBtn" style="border:none;">✕</button>
+      </div>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+  </div>
+
+  <!-- BOOKMARKS DRAWER -->
+  <div class="bm-drawer" id="bmDrawer">
+    <div class="bm-sheet">
+      <div class="bm-sheet-head">
+        <h3>Saved bookmarks</h3>
+        <button id="bmCloseBtn">✕</button>
+      </div>
+      <div class="bm-list" id="bmList"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Attempt to load full dataset from GitHub; falls back to embedded sample if it fails -->
+  <script src="https://gvssmark.github.io/raghu/raghu.json" onerror="window.__raghuExternalFailed=true"></script>
+
+  <script>
+  /* =========================================================
+     FALLBACK SAMPLE DATA (embedded so the page always works)
+     Replaced by window.raghu (from the external <script>) when
+     that file loads successfully.
+     ========================================================= */
+  var RAGHU_FALLBACK = [{"Sarga": "ప్రథమస్పర్గః", "SargaNo": 1, "SlokamNo": 1, "Slokam": "సేనాపరిచ్ఛదస్తస్య ద్వయమేవార్థసాధనమ్ \nశాస్త్రేష్వకుణ్ణితా బుద్ధి: మౌర్వీ ధనుషిచాతతా ", "Padavibhaga": "సేనా-పరి+ఛదః+తస్య-ద్వయమ్+ఏవ+అర్థ-సాధనమ్ శాస్త్రేషు +అకుణ్ణితా-బుద్ధిః-మౌర్వీ-ధనుషి చ+ఆతతా ", "Anvyaya": "తస్య సేనా పరిచ్ఛదః (ఆసీత్) శాస్త్రేషు అకుణ్ణితా బుద్ధిః ధనుషి ఆతతా మౌర్వీ చ (ఏతత్ ) ద్వయమ్ ఏవ అర్థసాధనమ్ (బభూవ)\n", "Akanksha": "బభూవ- అధ్యాహారక్రియాపదము - ఆయెను..\nకిమ్..?ఏది..?\nద్వయమేవ - రెండే\nకిమర్థమ్... - దేనికి రెండే..?\nఅర్థసాధనమ్ - ప్రయోజనమునకు సాధనము\nకాచ- ఏది..?\nమౌర్వీ - వింటినారి/ అల్లెత్రాడు\nమౌర్వీ కథం భూతా..? - అల్లెత్రాడు ఎలా ఉన్నది..\nఅతతా- ఎక్కడపెట్టబడి ఉన్నది.. ఆరోపణము చేయబడి. ఉన్నది\nకస్మిన్..? - దేనియందు ఆరోపణము చేయబడి ఉన్నది.?\nధనుషి.. - ధనువు నందు\nఅపరా కాచ..?-రెండవది ఏది..\nబుద్ధిః - మేధ, బుద్ధి, ధిషణా, మతి, ప్రజ్ఞ, ధీ,మనీష, ప్రతిభ\nబుద్ధి: కథం భూతా..? బుద్ధి ఎటువంటిది..?\nఅకుణ్ణితా - అప్రతిహతమైనది.. స్థిరమైనది.. మొక్కవోనిది\nకేషు..? - వేని యందు...\nశాస్త్రేషు - శాస్త్రములయందు\nతథా చేత్.. అలా అయితే.. మరి..\nసేనా-సేనాబలము /పరివారము..\nకా బభూవ..? ఇవి ఏమైనవి..?\nపరిచ్ఛదః - కేవలము ఉపకరణములు మాత్రమే..\nప్రయోజనమును సిద్ధించుటకై కాదు..\n", "Bhava": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము చతుర్దశమహావిద్యానీతి శాస్త్రములలో మొక్కవోని పరిశ్రమ, రాజానుశాసనమునకై ఎప్పుడూ సంధించిఉంచిన ధనుస్సం విల్లు, వింటినారి - ఈ రెండే కారణము..", "Vyakarana": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము ", "Others": "ఇతర విశేష అంశాలు "}, {"Sarga": "ప్రథమస్పర్గః", "SargaNo": 1, "SlokamNo": 2, "Slokam": "సేనాపరిచ్ఛదస్తస్య ద్వయమేవార్థసాధనమ్ \nశాస్త్రేష్వకుణ్ణితా బుద్ధి: మౌర్వీ ధనుషిచాతతా ", "Padavibhaga": "సేనా-పరి+ఛదః+తస్య-ద్వయమ్+ఏవ+అర్థ-సాధనమ్ శాస్త్రేషు +అకుణ్ణితా-బుద్ధిః-మౌర్వీ-ధనుషి చ+ఆతతా ", "Anvyaya": "తస్య సేనా పరిచ్ఛదః (ఆసీత్) శాస్త్రేషు అకుణ్ణితా బుద్ధిః ధనుషి ఆతతా మౌర్వీ చ (ఏతత్ ) ద్వయమ్ ఏవ అర్థసాధనమ్ (బభూవ)\n", "Akanksha": "బభూవ- అధ్యాహారక్రియాపదము - ఆయెను..\nకిమ్..?ఏది..?\nద్వయమేవ - రెండే\nకిమర్థమ్... - దేనికి రెండే..?\nఅర్థసాధనమ్ - ప్రయోజనమునకు సాధనము\nకాచ- ఏది..?\nమౌర్వీ - వింటినారి/ అల్లెత్రాడు\nమౌర్వీ కథం భూతా..? - అల్లెత్రాడు ఎలా ఉన్నది..\nఅతతా- ఎక్కడపెట్టబడి ఉన్నది.. ఆరోపణము చేయబడి. ఉన్నది\nకస్మిన్..? - దేనియందు ఆరోపణము చేయబడి ఉన్నది.?\nధనుషి.. - ధనువు నందు\nఅపరా కాచ..?-రెండవది ఏది..\nబుద్ధిః - మేధ, బుద్ధి, ధిషణా, మతి, ప్రజ్ఞ, ధీ,మనీష, ప్రతిభ\nబుద్ధి: కథం భూతా..? బుద్ధి ఎటువంటిది..?\nఅకుణ్ణితా - అప్రతిహతమైనది.. స్థిరమైనది.. మొక్కవోనిది\nకేషు..? - వేని యందు...\nశాస్త్రేషు - శాస్త్రములయందు\nతథా చేత్.. అలా అయితే.. మరి..\nసేనా-సేనాబలము /పరివారము..\nకా బభూవ..? ఇవి ఏమైనవి..?\nపరిచ్ఛదః - కేవలము ఉపకరణములు మాత్రమే..\nప్రయోజనమును సిద్ధించుటకై కాదు..\n", "Bhava": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము చతుర్దశమహావిద్యానీతి శాస్త్రములలో మొక్కవోని పరిశ్రమ, రాజానుశాసనమునకై ఎప్పుడూ సంధించిఉంచిన ధనుస్సం విల్లు, వింటినారి - ఈ రెండే కారణము..", "Vyakarana": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము ", "Others": "ఇతర విశేష అంశాలు "}, {"Sarga": "ప్రథమస్పర్గః", "SargaNo": 1, "SlokamNo": 3, "Slokam": "సేనాపరిచ్ఛదస్తస్య ద్వయమేవార్థసాధనమ్ \nశాస్త్రేష్వకుణ్ణితా బుద్ధి: మౌర్వీ ధనుషిచాతతా ", "Padavibhaga": "సేనా-పరి+ఛదః+తస్య-ద్వయమ్+ఏవ+అర్థ-సాధనమ్ శాస్త్రేషు +అకుణ్ణితా-బుద్ధిః-మౌర్వీ-ధనుషి చ+ఆతతా ", "Anvyaya": "తస్య సేనా పరిచ్ఛదః (ఆసీత్) శాస్త్రేషు అకుణ్ణితా బుద్ధిః ధనుషి ఆతతా మౌర్వీ చ (ఏతత్ ) ద్వయమ్ ఏవ అర్థసాధనమ్ (బభూవ)\n", "Akanksha": "బభూవ- అధ్యాహారక్రియాపదము - ఆయెను..\nకిమ్..?ఏది..?\nద్వయమేవ - రెండే\nకిమర్థమ్... - దేనికి రెండే..?\nఅర్థసాధనమ్ - ప్రయోజనమునకు సాధనము\nకాచ- ఏది..?\nమౌర్వీ - వింటినారి/ అల్లెత్రాడు\nమౌర్వీ కథం భూతా..? - అల్లెత్రాడు ఎలా ఉన్నది..\nఅతతా- ఎక్కడపెట్టబడి ఉన్నది.. ఆరోపణము చేయబడి. ఉన్నది\nకస్మిన్..? - దేనియందు ఆరోపణము చేయబడి ఉన్నది.?\nధనుషి.. - ధనువు నందు\nఅపరా కాచ..?-రెండవది ఏది..\nబుద్ధిః - మేధ, బుద్ధి, ధిషణా, మతి, ప్రజ్ఞ, ధీ,మనీష, ప్రతిభ\nబుద్ధి: కథం భూతా..? బుద్ధి ఎటువంటిది..?\nఅకుణ్ణితా - అప్రతిహతమైనది.. స్థిరమైనది.. మొక్కవోనిది\nకేషు..? - వేని యందు...\nశాస్త్రేషు - శాస్త్రములయందు\nతథా చేత్.. అలా అయితే.. మరి..\nసేనా-సేనాబలము /పరివారము..\nకా బభూవ..? ఇవి ఏమైనవి..?\nపరిచ్ఛదః - కేవలము ఉపకరణములు మాత్రమే..\nప్రయోజనమును సిద్ధించుటకై కాదు..\n", "Bhava": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము చతుర్దశమహావిద్యానీతి శాస్త్రములలో మొక్కవోని పరిశ్రమ, రాజానుశాసనమునకై ఎప్పుడూ సంధించిఉంచిన ధనుస్సం విల్లు, వింటినారి - ఈ రెండే కారణము..", "Vyakarana": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము ", "Others": "ఇతర విశేష అంశాలు "}, {"Sarga": "ప్రథమస్పర్గః", "SargaNo": 1, "SlokamNo": 4, "Slokam": "సేనాపరిచ్ఛదస్తస్య ద్వయమేవార్థసాధనమ్ \nశాస్త్రేష్వకుణ్ణితా బుద్ధి: మౌర్వీ ధనుషిచాతతా ", "Padavibhaga": "సేనా-పరి+ఛదః+తస్య-ద్వయమ్+ఏవ+అర్థ-సాధనమ్ శాస్త్రేషు +అకుణ్ణితా-బుద్ధిః-మౌర్వీ-ధనుషి చ+ఆతతా ", "Anvyaya": "తస్య సేనా పరిచ్ఛదః (ఆసీత్) శాస్త్రేషు అకుణ్ణితా బుద్ధిః ధనుషి ఆతతా మౌర్వీ చ (ఏతత్ ) ద్వయమ్ ఏవ అర్థసాధనమ్ (బభూవ)\n", "Akanksha": "బభూవ- అధ్యాహారక్రియాపదము - ఆయెను..\nకిమ్..?ఏది..?\nద్వయమేవ - రెండే\nకిమర్థమ్... - దేనికి రెండే..?\nఅర్థసాధనమ్ - ప్రయోజనమునకు సాధనము\nకాచ- ఏది..?\nమౌర్వీ - వింటినారి/ అల్లెత్రాడు\nమౌర్వీ కథం భూతా..? - అల్లెత్రాడు ఎలా ఉన్నది..\nఅతతా- ఎక్కడపెట్టబడి ఉన్నది.. ఆరోపణము చేయబడి. ఉన్నది\nకస్మిన్..? - దేనియందు ఆరోపణము చేయబడి ఉన్నది.?\nధనుషి.. - ధనువు నందు\nఅపరా కాచ..?-రెండవది ఏది..\nబుద్ధిః - మేధ, బుద్ధి, ధిషణా, మతి, ప్రజ్ఞ, ధీ,మనీష, ప్రతిభ\nబుద్ధి: కథం భూతా..? బుద్ధి ఎటువంటిది..?\nఅకుణ్ణితా - అప్రతిహతమైనది.. స్థిరమైనది.. మొక్కవోనిది\nకేషు..? - వేని యందు...\nశాస్త్రేషు - శాస్త్రములయందు\nతథా చేత్.. అలా అయితే.. మరి..\nసేనా-సేనాబలము /పరివారము..\nకా బభూవ..? ఇవి ఏమైనవి..?\nపరిచ్ఛదః - కేవలము ఉపకరణములు మాత్రమే..\nప్రయోజనమును సిద్ధించుటకై కాదు..\n", "Bhava": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము చతుర్దశమహావిద్యానీతి శాస్త్రములలో మొక్కవోని పరిశ్రమ, రాజానుశాసనమునకై ఎప్పుడూ సంధించిఉంచిన ధనుస్సం విల్లు, వింటినారి - ఈ రెండే కారణము..", "Vyakarana": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము ", "Others": "ఇతర విశేష అంశాలు "}, {"Sarga": "ప్రథమస్పర్గః", "SargaNo": 1, "SlokamNo": 5, "Slokam": "సేనాపరిచ్ఛదస్తస్య ద్వయమేవార్థసాధనమ్ \nశాస్త్రేష్వకుణ్ణితా బుద్ధి: మౌర్వీ ధనుషిచాతతా ", "Padavibhaga": "సేనా-పరి+ఛదః+తస్య-ద్వయమ్+ఏవ+అర్థ-సాధనమ్ శాస్త్రేషు +అకుణ్ణితా-బుద్ధిః-మౌర్వీ-ధనుషి చ+ఆతతా ", "Anvyaya": "తస్య సేనా పరిచ్ఛదః (ఆసీత్) శాస్త్రేషు అకుణ్ణితా బుద్ధిః ధనుషి ఆతతా మౌర్వీ చ (ఏతత్ ) ద్వయమ్ ఏవ అర్థసాధనమ్ (బభూవ)\n", "Akanksha": "బభూవ- అధ్యాహారక్రియాపదము - ఆయెను..\nకిమ్..?ఏది..?\nద్వయమేవ - రెండే\nకిమర్థమ్... - దేనికి రెండే..?\nఅర్థసాధనమ్ - ప్రయోజనమునకు సాధనము\nకాచ- ఏది..?\nమౌర్వీ - వింటినారి/ అల్లెత్రాడు\nమౌర్వీ కథం భూతా..? - అల్లెత్రాడు ఎలా ఉన్నది..\nఅతతా- ఎక్కడపెట్టబడి ఉన్నది.. ఆరోపణము చేయబడి. ఉన్నది\nకస్మిన్..? - దేనియందు ఆరోపణము చేయబడి ఉన్నది.?\nధనుషి.. - ధనువు నందు\nఅపరా కాచ..?-రెండవది ఏది..\nబుద్ధిః - మేధ, బుద్ధి, ధిషణా, మతి, ప్రజ్ఞ, ధీ,మనీష, ప్రతిభ\nబుద్ధి: కథం భూతా..? బుద్ధి ఎటువంటిది..?\nఅకుణ్ణితా - అప్రతిహతమైనది.. స్థిరమైనది.. మొక్కవోనిది\nకేషు..? - వేని యందు...\nశాస్త్రేషు - శాస్త్రములయందు\nతథా చేత్.. అలా అయితే.. మరి..\nసేనా-సేనాబలము /పరివారము..\nకా బభూవ..? ఇవి ఏమైనవి..?\nపరిచ్ఛదః - కేవలము ఉపకరణములు మాత్రమే..\nప్రయోజనమును సిద్ధించుటకై కాదు..\n", "Bhava": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము చతుర్దశమహావిద్యానీతి శాస్త్రములలో మొక్కవోని పరిశ్రమ, రాజానుశాసనమునకై ఎప్పుడూ సంధించిఉంచిన ధనుస్సం విల్లు, వింటినారి - ఈ రెండే కారణము..", "Vyakarana": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము ", "Others": "ఇతర విశేష అంశాలు "}, {"Sarga": "ప్రథమస్పర్గః", "SargaNo": 1, "SlokamNo": 6, "Slokam": "సేనాపరిచ్ఛదస్తస్య ద్వయమేవార్థసాధనమ్ \nశాస్త్రేష్వకుణ్ణితా బుద్ధి: మౌర్వీ ధనుషిచాతతా ", "Padavibhaga": "సేనా-పరి+ఛదః+తస్య-ద్వయమ్+ఏవ+అర్థ-సాధనమ్ శాస్త్రేషు +అకుణ్ణితా-బుద్ధిః-మౌర్వీ-ధనుషి చ+ఆతతా ", "Anvyaya": "తస్య సేనా పరిచ్ఛదః (ఆసీత్) శాస్త్రేషు అకుణ్ణితా బుద్ధిః ధనుషి ఆతతా మౌర్వీ చ (ఏతత్ ) ద్వయమ్ ఏవ అర్థసాధనమ్ (బభూవ)\n", "Akanksha": "బభూవ- అధ్యాహారక్రియాపదము - ఆయెను..\nకిమ్..?ఏది..?\nద్వయమేవ - రెండే\nకిమర్థమ్... - దేనికి రెండే..?\nఅర్థసాధనమ్ - ప్రయోజనమునకు సాధనము\nకాచ- ఏది..?\nమౌర్వీ - వింటినారి/ అల్లెత్రాడు\nమౌర్వీ కథం భూతా..? - అల్లెత్రాడు ఎలా ఉన్నది..\nఅతతా- ఎక్కడపెట్టబడి ఉన్నది.. ఆరోపణము చేయబడి. ఉన్నది\nకస్మిన్..? - దేనియందు ఆరోపణము చేయబడి ఉన్నది.?\nధనుషి.. - ధనువు నందు\nఅపరా కాచ..?-రెండవది ఏది..\nబుద్ధిః - మేధ, బుద్ధి, ధిషణా, మతి, ప్రజ్ఞ, ధీ,మనీష, ప్రతిభ\nబుద్ధి: కథం భూతా..? బుద్ధి ఎటువంటిది..?\nఅకుణ్ణితా - అప్రతిహతమైనది.. స్థిరమైనది.. మొక్కవోనిది\nకేషు..? - వేని యందు...\nశాస్త్రేషు - శాస్త్రములయందు\nతథా చేత్.. అలా అయితే.. మరి..\nసేనా-సేనాబలము /పరివారము..\nకా బభూవ..? ఇవి ఏమైనవి..?\nపరిచ్ఛదః - కేవలము ఉపకరణములు మాత్రమే..\nప్రయోజనమును సిద్ధించుటకై కాదు..\n", "Bhava": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము చతుర్దశమహావిద్యానీతి శాస్త్రములలో మొక్కవోని పరిశ్రమ, రాజానుశాసనమునకై ఎప్పుడూ సంధించిఉంచిన ధనుస్సం విల్లు, వింటినారి - ఈ రెండే కారణము..", "Vyakarana": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము ", "Others": "ఇతర విశేష అంశాలు "}, {"Sarga": "ప్రథమస్పర్గః", "SargaNo": 1, "SlokamNo": 7, "Slokam": "సేనాపరిచ్ఛదస్తస్య ద్వయమేవార్థసాధనమ్ \nశాస్త్రేష్వకుణ్ణితా బుద్ధి: మౌర్వీ ధనుషిచాతతా ", "Padavibhaga": "సేనా-పరి+ఛదః+తస్య-ద్వయమ్+ఏవ+అర్థ-సాధనమ్ శాస్త్రేషు +అకుణ్ణితా-బుద్ధిః-మౌర్వీ-ధనుషి చ+ఆతతా ", "Anvyaya": "తస్య సేనా పరిచ్ఛదః (ఆసీత్) శాస్త్రేషు అకుణ్ణితా బుద్ధిః ధనుషి ఆతతా మౌర్వీ చ (ఏతత్ ) ద్వయమ్ ఏవ అర్థసాధనమ్ (బభూవ)\n", "Akanksha": "బభూవ- అధ్యాహారక్రియాపదము - ఆయెను..\nకిమ్..?ఏది..?\nద్వయమేవ - రెండే\nకిమర్థమ్... - దేనికి రెండే..?\nఅర్థసాధనమ్ - ప్రయోజనమునకు సాధనము\nకాచ- ఏది..?\nమౌర్వీ - వింటినారి/ అల్లెత్రాడు\nమౌర్వీ కథం భూతా..? - అల్లెత్రాడు ఎలా ఉన్నది..\nఅతతా- ఎక్కడపెట్టబడి ఉన్నది.. ఆరోపణము చేయబడి. ఉన్నది\nకస్మిన్..? - దేనియందు ఆరోపణము చేయబడి ఉన్నది.?\nధనుషి.. - ధనువు నందు\nఅపరా కాచ..?-రెండవది ఏది..\nబుద్ధిః - మేధ, బుద్ధి, ధిషణా, మతి, ప్రజ్ఞ, ధీ,మనీష, ప్రతిభ\nబుద్ధి: కథం భూతా..? బుద్ధి ఎటువంటిది..?\nఅకుణ్ణితా - అప్రతిహతమైనది.. స్థిరమైనది.. మొక్కవోనిది\nకేషు..? - వేని యందు...\nశాస్త్రేషు - శాస్త్రములయందు\nతథా చేత్.. అలా అయితే.. మరి..\nసేనా-సేనాబలము /పరివారము..\nకా బభూవ..? ఇవి ఏమైనవి..?\nపరిచ్ఛదః - కేవలము ఉపకరణములు మాత్రమే..\nప్రయోజనమును సిద్ధించుటకై కాదు..\n", "Bhava": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము చతుర్దశమహావిద్యానీతి శాస్త్రములలో మొక్కవోని పరిశ్రమ, రాజానుశాసనమునకై ఎప్పుడూ సంధించిఉంచిన ధనుస్సం విల్లు, వింటినారి - ఈ రెండే కారణము..", "Vyakarana": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము ", "Others": "ఇతర విశేష అంశాలు "}, {"Sarga": "ప్రథమస్పర్గః", "SargaNo": 1, "SlokamNo": 8, "Slokam": "సేనాపరిచ్ఛదస్తస్య ద్వయమేవార్థసాధనమ్ \nశాస్త్రేష్వకుణ్ణితా బుద్ధి: మౌర్వీ ధనుషిచాతతా ", "Padavibhaga": "సేనా-పరి+ఛదః+తస్య-ద్వయమ్+ఏవ+అర్థ-సాధనమ్ శాస్త్రేషు +అకుణ్ణితా-బుద్ధిః-మౌర్వీ-ధనుషి చ+ఆతతా ", "Anvyaya": "తస్య సేనా పరిచ్ఛదః (ఆసీత్) శాస్త్రేషు అకుణ్ణితా బుద్ధిః ధనుషి ఆతతా మౌర్వీ చ (ఏతత్ ) ద్వయమ్ ఏవ అర్థసాధనమ్ (బభూవ)\n", "Akanksha": "బభూవ- అధ్యాహారక్రియాపదము - ఆయెను..\nకిమ్..?ఏది..?\nద్వయమేవ - రెండే\nకిమర్థమ్... - దేనికి రెండే..?\nఅర్థసాధనమ్ - ప్రయోజనమునకు సాధనము\nకాచ- ఏది..?\nమౌర్వీ - వింటినారి/ అల్లెత్రాడు\nమౌర్వీ కథం భూతా..? - అల్లెత్రాడు ఎలా ఉన్నది..\nఅతతా- ఎక్కడపెట్టబడి ఉన్నది.. ఆరోపణము చేయబడి. ఉన్నది\nకస్మిన్..? - దేనియందు ఆరోపణము చేయబడి ఉన్నది.?\nధనుషి.. - ధనువు నందు\nఅపరా కాచ..?-రెండవది ఏది..\nబుద్ధిః - మేధ, బుద్ధి, ధిషణా, మతి, ప్రజ్ఞ, ధీ,మనీష, ప్రతిభ\nబుద్ధి: కథం భూతా..? బుద్ధి ఎటువంటిది..?\nఅకుణ్ణితా - అప్రతిహతమైనది.. స్థిరమైనది.. మొక్కవోనిది\nకేషు..? - వేని యందు...\nశాస్త్రేషు - శాస్త్రములయందు\nతథా చేత్.. అలా అయితే.. మరి..\nసేనా-సేనాబలము /పరివారము..\nకా బభూవ..? ఇవి ఏమైనవి..?\nపరిచ్ఛదః - కేవలము ఉపకరణములు మాత్రమే..\nప్రయోజనమును సిద్ధించుటకై కాదు..\n", "Bhava": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము చతుర్దశమహావిద్యానీతి శాస్త్రములలో మొక్కవోని పరిశ్రమ, రాజానుశాసనమునకై ఎప్పుడూ సంధించిఉంచిన ధనుస్సం విల్లు, వింటినారి - ఈ రెండే కారణము..", "Vyakarana": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము ", "Others": "ఇతర విశేష అంశాలు "}, {"Sarga": "ప్రథమస్పర్గః", "SargaNo": 1, "SlokamNo": 9, "Slokam": "సేనాపరిచ్ఛదస్తస్య ద్వయమేవార్థసాధనమ్ \nశాస్త్రేష్వకుణ్ణితా బుద్ధి: మౌర్వీ ధనుషిచాతతా ", "Padavibhaga": "సేనా-పరి+ఛదః+తస్య-ద్వయమ్+ఏవ+అర్థ-సాధనమ్ శాస్త్రేషు +అకుణ్ణితా-బుద్ధిః-మౌర్వీ-ధనుషి చ+ఆతతా ", "Anvyaya": "తస్య సేనా పరిచ్ఛదః (ఆసీత్) శాస్త్రేషు అకుణ్ణితా బుద్ధిః ధనుషి ఆతతా మౌర్వీ చ (ఏతత్ ) ద్వయమ్ ఏవ అర్థసాధనమ్ (బభూవ)\n", "Akanksha": "బభూవ- అధ్యాహారక్రియాపదము - ఆయెను..\nకిమ్..?ఏది..?\nద్వయమేవ - రెండే\nకిమర్థమ్... - దేనికి రెండే..?\nఅర్థసాధనమ్ - ప్రయోజనమునకు సాధనము\nకాచ- ఏది..?\nమౌర్వీ - వింటినారి/ అల్లెత్రాడు\nమౌర్వీ కథం భూతా..? - అల్లెత్రాడు ఎలా ఉన్నది..\nఅతతా- ఎక్కడపెట్టబడి ఉన్నది.. ఆరోపణము చేయబడి. ఉన్నది\nకస్మిన్..? - దేనియందు ఆరోపణము చేయబడి ఉన్నది.?\nధనుషి.. - ధనువు నందు\nఅపరా కాచ..?-రెండవది ఏది..\nబుద్ధిః - మేధ, బుద్ధి, ధిషణా, మతి, ప్రజ్ఞ, ధీ,మనీష, ప్రతిభ\nబుద్ధి: కథం భూతా..? బుద్ధి ఎటువంటిది..?\nఅకుణ్ణితా - అప్రతిహతమైనది.. స్థిరమైనది.. మొక్కవోనిది\nకేషు..? - వేని యందు...\nశాస్త్రేషు - శాస్త్రములయందు\nతథా చేత్.. అలా అయితే.. మరి..\nసేనా-సేనాబలము /పరివారము..\nకా బభూవ..? ఇవి ఏమైనవి..?\nపరిచ్ఛదః - కేవలము ఉపకరణములు మాత్రమే..\nప్రయోజనమును సిద్ధించుటకై కాదు..\n", "Bhava": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము చతుర్దశమహావిద్యానీతి శాస్త్రములలో మొక్కవోని పరిశ్రమ, రాజానుశాసనమునకై ఎప్పుడూ సంధించిఉంచిన ధనుస్సం విల్లు, వింటినారి - ఈ రెండే కారణము..", "Vyakarana": "దిలీపమహారాజుకు సేనా, రాజోద్యోగయంత్రాంగము- ఇవన్నీ కేవలము రాజోచితము, రాజ్యాంగభాగములైన అలంకారములు మాత్రమే.. కార్యసాధన, ప్రజానురంజన పరిపాలనావ్యవస్థ, ప్రజోపయోగకరణప్రణాళికావిధానము, యజ్ఞయాగాది వైదిక కార్యనివేశము, విద్య, కళాపోషణ, దేశ అంతర్ బహిః రక్షణ, దండనీతి, - ఇన్నిన్ని కార్యములను సమర్థముగ ఫలవంతముగ నిర్వహించుటకు.. కేవలము ", "Others": "ఇతర విశేష అంశాలు "}];
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
