@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3C141E">
+<title>రఘువంశం &middot; Raghuvamsa</title>
+<meta name="description" content="Raghuvamsa Mahakavyam — Telugu commentary reader">
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Telugu:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===== Side menu (Home) ===== -->
+<div class="menu-overlay" id="menuOverlay"></div>
+<nav class="side-menu" id="sideMenu" aria-hidden="true">
+  <div class="side-menu-header">
+    <span class="side-menu-title">రఘువంశం</span>
+    <button class="icon-btn" id="menuCloseBtn" aria-label="Close menu">&times;</button>
+  </div>
+
+  <div class="side-menu-section">
+    <label class="side-menu-label" for="sargaSelect">సర్గ (Sarga)</label>
+    <select id="sargaSelect" class="sarga-select"></select>
+  </div>
+
+  <div class="side-menu-section">
+    <span class="side-menu-label">అక్షర పరిమాణం (Font size)</span>
+    <div class="font-size-row">
+      <button class="font-btn" id="fontDecBtn" aria-label="Decrease font size">A-</button>
+      <span id="fontSizeLabel" class="font-size-label">100%</span>
+      <button class="font-btn" id="fontIncBtn" aria-label="Increase font size">A+</button>
+    </div>
+  </div>
+
+  <div class="side-menu-section">
+    <span class="side-menu-label">స్థానం (Position)</span>
+    <div class="menu-note" id="lastReadNote">—</div>
+  </div>
+</nav>
+
+<div class="app">
+
+  <!-- ===== Search bar ===== -->
+  <header class="topbar">
+    <button class="icon-btn" id="searchToggleBtn" aria-label="Search">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M10 4a6 6 0 104.47 10.03l4.75 4.75 1.41-1.41-4.75-4.75A6 6 0 0010 4zm0 2a4 4 0 110 8 4 4 0 010-8z"/></svg>
+    </button>
+    <div class="topbar-title" id="topbarTitle">సర్గ 1 &middot; శ్లోకం 1</div>
+    <button class="icon-btn" id="bookmarkIndicator" aria-label="Position saved" title="Last saved position">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 2h12v20l-6-4-6 4V2z"/></svg>
+    </button>
+  </header>
+
+  <div class="search-bar" id="searchBar" hidden>
+    <input type="search" id="searchInput" class="search-input" placeholder="శ్లోకంలో పదం వెతకండి..." autocomplete="off">
+    <button class="icon-btn" id="searchCloseBtn" aria-label="Close search">&times;</button>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+
+  <!-- ===== Fixed sloka panel ===== -->
+  <section class="sloka-panel" id="slokaPanel" aria-live="polite">
+    <div class="sloka-panel-inner">
+      <div class="sloka-lines" id="slokaLines">
+        <p class="sloka-loading">లోడ్ అవుతోంది...</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Topic tabs ===== -->
+  <nav class="topic-tabs" id="topicTabs" role="tablist" aria-label="Topics"></nav>
+
+  <!-- ===== Topic content (swipeable) ===== -->
+  <main class="topic-content" id="topicContent" role="tabpanel">
+    <div class="topic-text" id="topicText"></div>
+  </main>
+
+  <!-- ===== Footer nav (prev / home / next) ===== -->
+  <footer class="footer-nav">
+    <button class="nav-btn" id="prevBtn" aria-label="Previous sloka">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg>
+      <span>వెనుక</span>
+    </button>
+    <button class="nav-btn nav-btn-home" id="homeBtn" aria-label="Menu">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+      <span>మెనూ</span>
+    </button>
+    <button class="nav-btn" id="nextBtn" aria-label="Next sloka">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path d="M8.6 7.4L10 6l6 6-6 6-1.4-1.4L13.2 12z"/></svg>
+      <span>తరువాత</span>
+    </button>
+  </footer>
+
+</div>
+
+<script src="app.js" defer></script>
+</body>
+</html>
