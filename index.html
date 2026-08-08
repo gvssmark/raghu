@@ -5,6 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>రఘువంశము — Raghuvamsha Reader</title>
 
+<script>
+  /* iOS Safari/WebKit bug workaround: 100dvh is supposed to track the real
+     visible viewport, but WebKit only recomputes it in response to scrolling
+     on the *document* — and this app intentionally sets body{overflow:hidden}
+     (all real scrolling happens in inner panels), so on iOS the dvh value can
+     get "stuck" at whatever it was on first paint. That's most visible in
+     home-screen/standalone mode, where it shows up as a gap under the footer
+     (or the footer being pushed off-screen) that never corrects itself.
+     Android's WebView/Chrome doesn't have this bug, which is why it only
+     shows up on iPhone. Fix: compute the real height in JS from
+     visualViewport (falls back to innerHeight) and drive layout off that via
+     a custom property, re-running on every resize/orientation/visualViewport
+     event so it tracks address-bar show/hide and the keyboard too. */
+  (function () {
+    function setAppHeight () {
+      var vv = window.visualViewport;
+      var h = vv ? vv.height : window.innerHeight;
+      document.documentElement.style.setProperty('--app-vh', h + 'px');
+    }
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', setAppHeight);
+      window.visualViewport.addEventListener('scroll', setAppHeight);
+    }
+  })();
+</script>
+
 <!-- PWA -->
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#FBF6EC">
@@ -50,6 +79,7 @@
        below, each with its own overscroll-behavior + momentum scroll. */
     height:100vh;   /* fallback for older engines */
     height:100dvh;
+    height:var(--app-vh, 100dvh);  /* JS-corrected value, see <script> in <head> */
     overflow:hidden;
     overscroll-behavior:none;
     display:flex; flex-direction:column;
