@@ -42,11 +42,14 @@
     color:var(--ink);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-tap-highlight-color: transparent;
-    /* Pin the whole page to the viewport so iOS Safari has nothing left to
-       rubber-band/bounce — that bounce is what reveals white space on a
-       long pull-down. All real scrolling happens inside the panels below,
-       each of which declares its own overscroll-behavior + momentum scroll. */
-    position:fixed; inset:0;
+    /* Size exactly to the real visible viewport (dvh tracks this reliably on iOS,
+       including the home-indicator safe area — position:fixed;inset:0 does not
+       always agree with it in standalone/home-screen mode, which is what was
+       leaving a gap below the footer). overflow:hidden means body itself has
+       nothing to scroll/bounce; all real scrolling happens inside the panels
+       below, each with its own overscroll-behavior + momentum scroll. */
+    height:100vh;   /* fallback for older engines */
+    height:100dvh;
     overflow:hidden;
     overscroll-behavior:none;
     display:flex; flex-direction:column;
