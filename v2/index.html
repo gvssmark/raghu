@@ -27,9 +27,9 @@
     <button class="icon-btn" id="menuCloseBtn" aria-label="Close menu">&times;</button>
   </div>
 
-  <div class="side-menu-section">
-    <label class="side-menu-label" for="sargaSelect">సర్గ (Sarga)</label>
-    <select id="sargaSelect" class="sarga-select"></select>
+  <div class="side-menu-section side-menu-section-tree">
+    <span class="side-menu-label">సర్గలు &middot; శ్లోకాలు (Sargas &amp; Slokas)</span>
+    <div class="sarga-tree" id="sargaTree"></div>
   </div>
 
   <div class="side-menu-section">
@@ -61,14 +61,22 @@
   </header>
 
   <div class="search-bar" id="searchBar" hidden>
-    <input type="search" id="searchInput" class="search-input" placeholder="శ్లోకంలో పదం వెతకండి..." autocomplete="off">
-    <button class="icon-btn" id="searchCloseBtn" aria-label="Close search">&times;</button>
+    <div class="search-input-row">
+      <input type="search" id="searchInput" class="search-input" placeholder="శ్లోకంలో పదం వెతకండి..." autocomplete="off">
+      <button class="icon-btn search-clear-btn" id="searchClearBtn" aria-label="Clear search" hidden>&times;</button>
+      <button class="icon-btn" id="searchCloseBtn" aria-label="Close search">&and;</button>
+    </div>
     <div class="search-results" id="searchResults"></div>
   </div>
 
+  <!-- ===== Search navigation banner ===== -->
+  <button class="search-nav-banner" id="searchNavBanner" hidden>
+    <span>శోధన ఫలితాల్లో నావిగేట్ చేస్తున్నారు &middot; బుక్‌మార్క్‌కు వెళ్లడానికి నొక్కండి</span>
+  </button>
+
   <!-- ===== Fixed sloka panel ===== -->
   <section class="sloka-panel" id="slokaPanel" aria-live="polite">
-    <div class="sloka-panel-inner">
+    <div class="sloka-panel-inner" id="slokaPanelInner">
       <div class="sloka-lines" id="slokaLines">
         <p class="sloka-loading">లోడ్ అవుతోంది...</p>
       </div>

@@ -3,24 +3,35 @@
 /* =========================================================
    CONFIG
    ---------------------------------------------------------
-   DATA_URL points at the test dataset for now. Once the real
-   raghu.json lives inside this repo, change this to a local
-   relative path (e.g. "./data/raghu.json") so the PWA can
-   fully cache it offline without depending on another origin.
+   DATA_URL / UPDATED_URL point at the test dataset for now.
+   Once the real files live inside this repo, change both to
+   local relative paths (e.g. "./data/raghu.json" and
+   "./data/updated.js") so the PWA can fully cache them
+   offline without depending on another origin.
+
+   updated.js is a tiny file containing a version marker, e.g.
+       updated = "080820261830";
+   It is NOT parsed as a real date — it's treated as an opaque
+   string. Whenever raghu.json is edited, change this string to
+   anything different (a timestamp is a natural choice) and the
+   app will detect the mismatch and pull fresh data.
 ========================================================= */
 const DATA_URL = "https://gvssmark.github.io/raghu/raghu.json";
+const UPDATED_URL = "https://gvssmark.github.io/raghu/updated.js";
+const DATA_VERSION_KEY = "raghu_data_version";
+const UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 min while app stays open
+
 const DB_NAME = "raghu-db";
 const DB_VERSION = 1;
 const STORE_ROWS = "rows";
-const STORE_META = "meta";
 
 const TOPICS = [
-  { key: "padavibhaga", col: 4, label: "Padavibhaga", icon: iconSplit() },
-  { key: "anvyaya",     col: 5, label: "Anvyaya",     icon: iconOrder() },
-  { key: "akanksha",    col: 6, label: "Akanksha",    icon: iconAkanksha(), joinLineBreaks: true },
-  { key: "bhava",       col: 7, label: "Bhava",       icon: iconBhava() },
-  { key: "vyakarana",   col: 8, label: "Vyakarana",   icon: iconGrammar() },
-  { key: "others",      col: 9, label: "Others",      icon: iconOthers() },
+  { key: "padavibhaga", label: "Padavibhaga", icon: iconSplit() },
+  { key: "anvyaya",     label: "Anvyaya",     icon: iconOrder() },
+  { key: "akanksha",    label: "Akanksha",    icon: iconAkanksha(), joinLineBreaks: true },
+  { key: "bhava",       label: "Bhava",       icon: iconBhava() },
+  { key: "vyakarana",   label: "Vyakarana",   icon: iconGrammar() },
+  { key: "others",      label: "Others",      icon: iconOthers() },
 ];
 const DEFAULT_TOPIC_KEY = "akanksha";
 
@@ -28,12 +39,17 @@ const DEFAULT_TOPIC_KEY = "akanksha";
    STATE
 ========================================================= */
 const state = {
-  rows: [],          // flat array of sloka objects, in file order
-  sargaList: [],      // [{sarga, sargaNo, firstIndex}]
-  currentIndex: 0,    // index into state.rows
+  rows: [],                // flat array of sloka objects, in file order
+  sargaList: [],            // [{sarga, sargaNo, firstIndex}]
+  sargaTree: [],            // [{sarga, sargaNo, slokas:[{idx, slokamNo, firstWord}]}]
+  currentIndex: 0,          // index into state.rows — what's on screen
+  bookmarkIndex: 0,         // index into state.rows — last "real" reading position
   currentTopicKey: DEFAULT_TOPIC_KEY,
   fontScale: 1,
-  wordIndex: null,    // Map<word, Set<rowIndex>>  (built from Slokam + Padavibhaga)
+  wordIndex: null,          // Map<word, Set<rowIndex>>  (built from Slokam + Padavibhaga)
+  searchQuery: "",           // persists until explicitly cleared
+  searchNavActive: false,    // true while browsing via a search result
+  expandedSargas: new Set(),
 };
 
 /* =========================================================
@@ -52,44 +68,33 @@ async function init() {
     const cached = await idbGetAllRows();
     if (cached && cached.length) {
       state.rows = cached;
-      afterDataReady({ fromCache: true });
-      refreshFromNetwork(); // update silently in background
+      afterDataReady();
+      checkForDataUpdate(); // cheap version check, upgrades in background if changed
     } else {
       const rows = await fetchAndParseData();
       state.rows = rows;
       await idbPutAllRows(rows);
-      afterDataReady({ fromCache: false });
+      await primeDataVersion();
+      afterDataReady();
     }
   } catch (err) {
     console.error("Data load failed", err);
     document.getElementById("slokaLines").innerHTML =
       '<p class="sloka-loading">డేటా లోడ్ కాలేదు. ఇంటర్నెట్ తనిఖీ చేయండి.</p>';
   }
-}
 
-async function refreshFromNetwork() {
-  try {
-    const rows = await fetchAndParseData();
-    // only replace if actually different in length (cheap heuristic)
-    if (rows.length !== state.rows.length) {
-      state.rows = rows;
-      await idbPutAllRows(rows);
-      buildSargaList();
-      buildWordIndex();
-      populateSargaSelect();
-    }
-  } catch (_) {
-    /* offline — silently keep using cache */
-  }
+  wireUpdatePolling();
 }
 
 function afterDataReady() {
   buildSargaList();
+  buildSargaTree();
   buildWordIndex();
-  populateSargaSelect();
+  renderSargaTree();
 
   const savedIndex = getSavedPositionIndex();
-  goToIndex(savedIndex != null ? savedIndex : 0, { save: false });
+  state.bookmarkIndex = savedIndex != null ? savedIndex : 0;
+  goToIndex(state.bookmarkIndex, { save: false });
 }
 
 /* =========================================================
@@ -132,6 +137,87 @@ function buildSargaList() {
   state.sargaList = [...seen.values()].sort((a, b) => a.sargaNo - b.sargaNo);
 }
 
+function buildSargaTree() {
+  const bySarga = new Map();
+  state.rows.forEach((row) => {
+    if (!bySarga.has(row.sargaNo)) {
+      bySarga.set(row.sargaNo, { sarga: row.sarga, sargaNo: row.sargaNo, slokas: [] });
+    }
+    const firstLine = (row.slokam.split("\n")[0] || "").trim();
+    const firstWord = firstLine.split(/\s+/)[0] || "";
+    bySarga.get(row.sargaNo).slokas.push({ idx: row.idx, slokamNo: row.slokamNo, firstWord });
+  });
+  state.sargaTree = [...bySarga.values()].sort((a, b) => a.sargaNo - b.sargaNo);
+}
+
+/* =========================================================
+   LIVE DATA UPDATE DETECTION (updated.js version marker)
+========================================================= */
+async function fetchRemoteVersion() {
+  const res = await fetch(UPDATED_URL, { cache: "no-store" });
+  if (!res.ok) throw new Error("updated.js fetch failed: " + res.status);
+  const text = await res.text();
+  const match = text.match(/["'`]([^"'`]+)["'`]/);
+  return match ? match[1] : text.trim();
+}
+
+async function primeDataVersion() {
+  try {
+    const v = await fetchRemoteVersion();
+    localStorage.setItem(DATA_VERSION_KEY, v);
+  } catch (_) {
+    /* updated.js not available yet — fine, next check will retry */
+  }
+}
+
+async function checkForDataUpdate() {
+  try {
+    const remoteVersion = await fetchRemoteVersion();
+    const localVersion = localStorage.getItem(DATA_VERSION_KEY);
+    if (!remoteVersion || remoteVersion === localVersion) return false;
+
+    const rows = await fetchAndParseData();
+
+    // Remember current + bookmarked sloka by (sargaNo, slokamNo) so we can
+    // re-locate them after the row array is replaced (indices may shift).
+    const curRow = state.rows[state.currentIndex];
+    const bmRow = state.rows[state.bookmarkIndex];
+
+    state.rows = rows;
+    await idbPutAllRows(rows);
+    localStorage.setItem(DATA_VERSION_KEY, remoteVersion);
+
+    buildSargaList();
+    buildSargaTree();
+    buildWordIndex();
+    renderSargaTree();
+
+    const newCurIdx = findRowIndex(curRow) ?? 0;
+    const newBmIdx = findRowIndex(bmRow) ?? 0;
+    state.bookmarkIndex = newBmIdx;
+    goToIndex(newCurIdx, { save: false });
+
+    return true;
+  } catch (_) {
+    return false; // offline, or updated.js/raghu.json not reachable — keep using cache
+  }
+}
+
+function findRowIndex(refRow) {
+  if (!refRow) return null;
+  const i = state.rows.findIndex(
+    (r) => r.sargaNo === refRow.sargaNo && r.slokamNo === refRow.slokamNo
+  );
+  return i === -1 ? null : i;
+}
+
+function wireUpdatePolling() {
+  setInterval(checkForDataUpdate, UPDATE_CHECK_INTERVAL_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkForDataUpdate();
+  });
+}
+
 /* =========================================================
    INDEXEDDB (offline cache of the dataset)
 ========================================================= */
@@ -142,9 +228,6 @@ function idbOpen() {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE_ROWS)) {
         db.createObjectStore(STORE_ROWS, { keyPath: "idx" });
-      }
-      if (!db.objectStoreNames.contains(STORE_META)) {
-        db.createObjectStore(STORE_META, { keyPath: "key" });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -232,6 +315,31 @@ function renderSloka(row) {
 }
 
 /* =========================================================
+   PAGE-FLIP TRANSITION (Prev/Next only)
+========================================================= */
+function flipSlokaPanel(direction, applyChanges) {
+  const el = document.getElementById("slokaPanelInner");
+  if (!el || typeof el.animate !== "function") { applyChanges(); return; } // no WAAPI support — just render
+
+  const outAngle = direction === "next" ? -90 : 90;
+  const inAngle = direction === "next" ? 90 : -90;
+
+  const anim1 = el.animate(
+    [{ transform: "rotateY(0deg)" }, { transform: `rotateY(${outAngle}deg)` }],
+    { duration: 150, easing: "ease-in", fill: "forwards" }
+  );
+  anim1.onfinish = () => {
+    applyChanges();
+    el.style.transform = `rotateY(${inAngle}deg)`;
+    const anim2 = el.animate(
+      [{ transform: `rotateY(${inAngle}deg)` }, { transform: "rotateY(0deg)" }],
+      { duration: 150, easing: "ease-out", fill: "forwards" }
+    );
+    anim2.onfinish = () => { el.style.transform = ""; };
+  };
+}
+
+/* =========================================================
    RENDER: topic tabs + content
 ========================================================= */
 function buildTopicTabs() {
@@ -262,8 +370,7 @@ function renderTopicContent() {
   const el = document.getElementById("topicText");
   if (!row || !topic) return;
 
-  let text = row[topic.key] || "";
-  text = text.trim();
+  let text = (row[topic.key] || "").trim();
 
   if (topic.joinLineBreaks) {
     text = text.split("\n").map((l) => l.trim()).filter(Boolean).join(" # ");
@@ -278,17 +385,34 @@ function renderTopicContent() {
 
 /* =========================================================
    NAVIGATION: go to a sloka by row index
+   ---------------------------------------------------------
+   save=true  -> this becomes the new bookmark (normal reading)
+   save=false -> just look at it; bookmark stays where it was
+   animate    -> "next" | "prev" | null (page-flip on prev/next only)
 ========================================================= */
-function goToIndex(i, { save = true } = {}) {
+function goToIndex(i, opts = {}) {
+  const { save = true, animate = null } = opts;
   if (i < 0 || i >= state.rows.length) return;
-  state.currentIndex = i;
-  const row = state.rows[i];
-  renderSloka(row);
-  renderTopicContent();
-  updatePrevNextState();
-  if (save) savePosition(row);
-  else updateLastReadNote(row);
-  document.getElementById("sargaSelect").value = String(row.sargaNo);
+
+  const apply = () => {
+    state.currentIndex = i;
+    const row = state.rows[i];
+    renderSloka(row);
+    renderTopicContent();
+    updatePrevNextState();
+    highlightCurrentInTree();
+
+    if (save) {
+      state.bookmarkIndex = i;
+      savePosition(row);
+      exitSearchNav({ silent: true });
+    } else {
+      updateLastReadNote(state.rows[state.bookmarkIndex] || row);
+    }
+  };
+
+  if (animate) flipSlokaPanel(animate, apply);
+  else apply();
 }
 
 function updatePrevNextState() {
@@ -326,25 +450,30 @@ function wireSwipe() {
    STATIC UI WIRING
 ========================================================= */
 function wireStaticUI() {
-  document.getElementById("prevBtn").addEventListener("click", () => goToIndex(state.currentIndex - 1));
-  document.getElementById("nextBtn").addEventListener("click", () => goToIndex(state.currentIndex + 1));
+  document.getElementById("prevBtn").addEventListener("click", () => {
+    goToIndex(state.currentIndex - 1, { save: !state.searchNavActive, animate: "prev" });
+  });
+  document.getElementById("nextBtn").addEventListener("click", () => {
+    goToIndex(state.currentIndex + 1, { save: !state.searchNavActive, animate: "next" });
+  });
   document.getElementById("homeBtn").addEventListener("click", openMenu);
 
   document.getElementById("menuCloseBtn").addEventListener("click", closeMenu);
   document.getElementById("menuOverlay").addEventListener("click", closeMenu);
 
-  document.getElementById("sargaSelect").addEventListener("change", (e) => {
-    const sargaNo = Number(e.target.value);
-    const entry = state.sargaList.find((s) => s.sargaNo === sargaNo);
-    if (entry) { goToIndex(entry.firstIndex); closeMenu(); }
-  });
-
   document.getElementById("fontIncBtn").addEventListener("click", () => setFontScale(state.fontScale + 0.1));
   document.getElementById("fontDecBtn").addEventListener("click", () => setFontScale(state.fontScale - 0.1));
 
   document.getElementById("searchToggleBtn").addEventListener("click", openSearch);
-  document.getElementById("searchCloseBtn").addEventListener("click", closeSearch);
-  document.getElementById("searchInput").addEventListener("input", (e) => runSearch(e.target.value));
+  document.getElementById("searchCloseBtn").addEventListener("click", closeSearchPanel);
+  document.getElementById("searchClearBtn").addEventListener("click", clearSearch);
+  document.getElementById("searchInput").addEventListener("input", (e) => {
+    state.searchQuery = e.target.value;
+    toggleClearBtn();
+    runSearch(state.searchQuery);
+  });
+
+  document.getElementById("searchNavBanner").addEventListener("click", () => exitSearchNav());
 
   wireSwipe();
 }
@@ -358,19 +487,6 @@ function closeMenu() {
   document.getElementById("menuOverlay").classList.remove("open");
 }
 
-function populateSargaSelect() {
-  const sel = document.getElementById("sargaSelect");
-  sel.innerHTML = "";
-  state.sargaList.forEach((s) => {
-    const opt = document.createElement("option");
-    opt.value = String(s.sargaNo);
-    opt.textContent = s.sarga;
-    sel.appendChild(opt);
-  });
-  const row = state.rows[state.currentIndex];
-  if (row) sel.value = String(row.sargaNo);
-}
-
 function setFontScale(v) {
   state.fontScale = Math.min(1.6, Math.max(0.8, Math.round(v * 10) / 10));
   applyFontScale();
@@ -379,6 +495,68 @@ function setFontScale(v) {
 function applyFontScale() {
   document.documentElement.style.setProperty("--sloka-scale", String(state.fontScale));
   document.getElementById("fontSizeLabel").textContent = Math.round(state.fontScale * 100) + "%";
+}
+
+/* =========================================================
+   SIDE MENU: Sarga -> Sloka accordion tree
+========================================================= */
+function renderSargaTree() {
+  const root = document.getElementById("sargaTree");
+  root.innerHTML = "";
+
+  const currentRow = state.rows[state.currentIndex];
+  if (currentRow) state.expandedSargas.add(currentRow.sargaNo);
+
+  state.sargaTree.forEach((sarga) => {
+    const wrap = document.createElement("div");
+    wrap.className = "sarga-node";
+
+    const header = document.createElement("button");
+    header.className = "sarga-node-header";
+    header.dataset.sargaNo = String(sarga.sargaNo);
+    const expanded = state.expandedSargas.has(sarga.sargaNo);
+    header.innerHTML = `
+      <span class="sarga-node-caret ${expanded ? "open" : ""}">&#9656;</span>
+      <span class="sarga-node-title">${sarga.sarga}</span>
+      <span class="sarga-node-count">${sarga.slokas.length}</span>`;
+    header.addEventListener("click", () => toggleSargaNode(sarga.sargaNo));
+    wrap.appendChild(header);
+
+    const list = document.createElement("div");
+    list.className = "sloka-list" + (expanded ? " open" : "");
+    list.dataset.sargaNo = String(sarga.sargaNo);
+    sarga.slokas.forEach((s) => {
+      const item = document.createElement("button");
+      item.className = "sloka-item" + (currentRow && s.idx === currentRow.idx ? " active" : "");
+      item.dataset.idx = String(s.idx);
+      item.innerHTML = `<span class="sloka-item-no">${s.slokamNo}</span><span class="sloka-item-word">${escapeHtml(s.firstWord)}</span>`;
+      item.addEventListener("click", () => {
+        goToIndex(s.idx, { save: true });
+        closeMenu();
+      });
+      list.appendChild(item);
+    });
+    wrap.appendChild(list);
+    root.appendChild(wrap);
+  });
+}
+
+function toggleSargaNode(sargaNo) {
+  if (state.expandedSargas.has(sargaNo)) state.expandedSargas.delete(sargaNo);
+  else state.expandedSargas.add(sargaNo);
+
+  const header = document.querySelector(`.sarga-node-header[data-sarga-no="${sargaNo}"]`);
+  const list = document.querySelector(`.sloka-list[data-sarga-no="${sargaNo}"]`);
+  if (header) header.querySelector(".sarga-node-caret").classList.toggle("open");
+  if (list) list.classList.toggle("open");
+}
+
+function highlightCurrentInTree() {
+  const row = state.rows[state.currentIndex];
+  if (!row) return;
+  document.querySelectorAll(".sloka-item.active").forEach((el) => el.classList.remove("active"));
+  const el = document.querySelector(`.sloka-item[data-idx="${row.idx}"]`);
+  if (el) el.classList.add("active");
 }
 
 /* =========================================================
@@ -418,7 +596,8 @@ function runSearch(query) {
 
   // For each query word, find indexed words containing it as a substring
   // (handles partial/compound Telugu word matches), then intersect rows
-  // across all query words.
+  // across all query words — searches the ENTIRE dataset, not just the
+  // current sarga.
   let matchSets = qWords.map((qw) => {
     const rows = new Set();
     for (const [word, rowSet] of state.wordIndex.entries()) {
@@ -432,7 +611,7 @@ function runSearch(query) {
     combined = new Set([...combined].filter((r) => matchSets[i].has(r)));
   }
 
-  const rowIndices = [...combined].sort((a, b) => a - b).slice(0, 40);
+  const rowIndices = [...combined].sort((a, b) => a - b).slice(0, 60);
   if (!rowIndices.length) {
     resultsEl.innerHTML = '<div class="search-empty">ఫలితాలు లేవు</div>';
     return;
@@ -447,12 +626,30 @@ function runSearch(query) {
     item.innerHTML = `
       <div class="search-result-meta">${row.sarga} · శ్లోకం ${row.slokamNo}</div>
       <div class="search-result-snippet">${snippet}</div>`;
-    item.addEventListener("click", () => {
-      goToIndex(row.idx);
-      closeSearch();
-    });
+    item.addEventListener("click", () => openSearchResult(row));
     resultsEl.appendChild(item);
   });
+}
+
+function openSearchResult(row) {
+  state.searchNavActive = true;
+  goToIndex(row.idx, { save: false });
+  showSearchNavBanner();
+  closeSearchPanel(); // hide the panel but keep the query/results intact for reopening
+}
+
+function showSearchNavBanner() {
+  document.getElementById("searchNavBanner").hidden = false;
+}
+function hideSearchNavBanner() {
+  document.getElementById("searchNavBanner").hidden = true;
+}
+
+function exitSearchNav({ silent = false } = {}) {
+  if (!state.searchNavActive) return;
+  state.searchNavActive = false;
+  hideSearchNavBanner();
+  if (!silent) goToIndex(state.bookmarkIndex, { save: false });
 }
 
 function highlightMatch(text, qWords) {
@@ -467,12 +664,25 @@ function highlightMatch(text, qWords) {
 
 function openSearch() {
   document.getElementById("searchBar").hidden = false;
+  const input = document.getElementById("searchInput");
+  input.value = state.searchQuery;
+  toggleClearBtn();
+  input.focus();
+  if (state.searchQuery) runSearch(state.searchQuery);
+  else document.getElementById("searchResults").innerHTML = "";
+}
+function closeSearchPanel() {
+  document.getElementById("searchBar").hidden = true; // query + results are kept
+}
+function clearSearch() {
+  state.searchQuery = "";
   document.getElementById("searchInput").value = "";
   document.getElementById("searchResults").innerHTML = "";
+  toggleClearBtn();
   document.getElementById("searchInput").focus();
 }
-function closeSearch() {
-  document.getElementById("searchBar").hidden = true;
+function toggleClearBtn() {
+  document.getElementById("searchClearBtn").hidden = !state.searchQuery;
 }
 
 /* =========================================================
