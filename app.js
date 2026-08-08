@@ -7,7 +7,7 @@
         already an array of objects).
   --------------------------------------------------------- */
   function normalizeData() {
-    var src = RAGHU_FALLBACK;
+    var src = (typeof raghu !== 'undefined' && !window.__raghuExternalFailed) ? raghu : RAGHU_FALLBACK;
     if (!src || !src.length) return [];
     // If it's the [header, ...rows] array-of-arrays shape (raw raghu.json), convert to objects.
     if (Array.isArray(src[0])) {
@@ -30,12 +30,12 @@
   });
 
   var TOPICS = [
-    { key: 'Padavibhaga', te: 'పదవిభాగ',  color: '#8C1F28', icon: iconSplit() },
-    { key: 'Anvyaya',     te: 'అన్వయ',    color: '#1E3A5F', icon: iconFlow() },
-    { key: 'Akanksha',    te: 'ఆకాంక్ష',  color: '#B8862E', icon: iconQuestion() },
-    { key: 'Bhava',       te: 'భావ',      color: '#6B3FA0', icon: iconLotus() },
-    { key: 'Vyakarana',   te: 'వ్యాకరణ', color: '#2E7D5B', icon: iconGrammar() },
-    { key: 'Others',      te: 'ఇతర',      color: '#6B6255', icon: iconMore() }
+    { key: 'Padavibhaga', te: 'పదవిభాగ',  glyph: 'ప',   color: '#8C1F28' },
+    { key: 'Anvyaya',     te: 'అన్వయ',    glyph: 'అ',   color: '#1E3A5F' },
+    { key: 'Akanksha',    te: 'ఆకాంక్ష',  glyph: 'ఆ',   color: '#B8862E' },
+    { key: 'Bhava',       te: 'భావ',      glyph: 'భా',  color: '#6B3FA0' },
+    { key: 'Vyakarana',   te: 'వ్యాకరణ', glyph: 'వ్యా', color: '#2E7D5B' },
+    { key: 'Others',      te: 'ఇతర',      glyph: 'ఇ',   color: '#6B6255' }
   ];
 
   /* ---------------------------------------------------------
@@ -51,8 +51,29 @@
   var state = {
     index: 0,                 // current position in VERSES
     topicIndex: 2,            // default = Akanksha
-    fontSize: parseInt(localStorage.getItem(LS.fontSize) || '26', 10)
+    fontSize: parseInt(localStorage.getItem(LS.fontSize) || '26', 10),
+    highlightQuery: null      // set when arriving via a search result; cleared on next explicit navigation
   };
+
+  function clearHighlight() { state.highlightQuery = null; }
+
+  // Wraps every case-insensitive occurrence of state.highlightQuery in <mark class="hl">,
+  // HTML-escaping everything else. Falls back to plain escaping when no query is active.
+  function highlightLine(rawLine) {
+    if (!state.highlightQuery) return escapeHtml(rawLine);
+    var q = state.highlightQuery;
+    var lowerLine = rawLine.toLowerCase();
+    var lowerQ = q.toLowerCase();
+    var result = '', i = 0, idx;
+    while (true) {
+      idx = lowerLine.indexOf(lowerQ, i);
+      if (idx === -1) { result += escapeHtml(rawLine.slice(i)); break; }
+      result += escapeHtml(rawLine.slice(i, idx));
+      result += '<mark class="hl">' + escapeHtml(rawLine.slice(idx, idx + q.length)) + '</mark>';
+      i = idx + q.length;
+    }
+    return result;
+  }
 
   function findIndex(sargaNo, slokamNo) {
     for (var i = 0; i < VERSES.length; i++) {
@@ -91,8 +112,8 @@
       var btn = document.createElement('button');
       btn.className = 'topic-btn' + (i === state.topicIndex ? ' active' : '');
       btn.style.setProperty('--topic-color', t.color);
-      btn.innerHTML = t.icon + '<span class="label-te">' + t.te + '</span>';
-      btn.addEventListener('click', function () { setTopic(i); });
+      btn.innerHTML = '<span class="topic-glyph">' + t.glyph + '</span><span class="label-te">' + t.te + '</span>';
+      btn.addEventListener('click', function () { clearHighlight(); setTopic(i); });
       topicRow.appendChild(btn);
     });
   }
@@ -106,7 +127,7 @@
     var lines = String(v.Slokam || '').split('\n').filter(function (l) { return l.trim().length; });
     slokaText.innerHTML = lines.map(function (line, i) {
       var cls = (i % 2 === 0) ? 'line-a' : 'line-b';
-      return '<div class="sloka-line ' + cls + '">' + escapeHtml(line.trim()) + '</div>';
+      return '<div class="sloka-line ' + cls + '">' + highlightLine(line.trim()) + '</div>';
     }).join('');
     slokaText.style.setProperty('--x', '');
     document.documentElement.style.setProperty('--sloka-font-size', state.fontSize + 'px');
@@ -134,10 +155,10 @@
       var lines = String(text).split('\n').filter(function (l) { return l.trim().length; });
       contentInner.innerHTML = lines.map(function (line, i) {
         var cls = (i % 2 === 0) ? 'line-a' : 'line-b';
-        return '<div class="content-line ' + cls + '">' + escapeHtml(line.trim()) + '</div>';
+        return '<div class="content-line ' + cls + '">' + highlightLine(line.trim()) + '</div>';
       }).join('');
     } else {
-      contentInner.innerHTML = escapeHtml(String(text).trim());
+      contentInner.innerHTML = highlightLine(String(text).trim());
     }
   }
 
@@ -174,38 +195,28 @@
   }
 
   /* ---------------------------------------------------------
-     4. FOOTER NAV + HOME (tap vs long-press) + STAR BOOKMARK
+     4. FOOTER NAV + HOME + STAR BOOKMARK
+     (Previously Home used a long-press timer to open the saved-
+     bookmarks drawer. That relied on pointerdown/pointerup timing
+     that can misfire on mobile browsers — replaced with a plain,
+     always-reliable header button instead. Home is now a simple tap.)
   --------------------------------------------------------- */
-  prevBtn.addEventListener('click', function () { goTo(state.index - 1); });
-  nextBtn.addEventListener('click', function () { goTo(state.index + 1); });
+  prevBtn.addEventListener('click', function () { clearHighlight(); goTo(state.index - 1); });
+  nextBtn.addEventListener('click', function () { clearHighlight(); goTo(state.index + 1); });
 
   var homeBtn = document.getElementById('homeBtn');
-  var pressTimer = null, longPressed = false;
+  homeBtn.addEventListener('click', function () { clearHighlight(); goToLastRead(); });
 
-  homeBtn.addEventListener('pointerdown', function () {
-    longPressed = false;
-    pressTimer = setTimeout(function () {
-      longPressed = true;
-      openBookmarkDrawer();
-    }, 500);
-  });
-  ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (evt) {
-    homeBtn.addEventListener(evt, function () { clearTimeout(pressTimer); });
-  });
-  homeBtn.addEventListener('click', function () {
-    if (longPressed) { longPressed = false; return; } // drawer already opened
-    goToLastRead();
-  });
+  document.getElementById('bmOpenBtn').addEventListener('click', openBookmarkDrawer);
 
   function goToLastRead() {
-    try {
-      var lr = JSON.parse(localStorage.getItem(LS.lastRead) || 'null');
-      if (lr) {
-        var i = findIndex(lr.sargaNo, lr.slokamNo);
-        if (i >= 0) { goTo(i); showToast('Back to your last-read verse'); return; }
-      }
-    } catch (e) {}
-    goTo(0);
+    var lr = null;
+    try { lr = JSON.parse(localStorage.getItem(LS.lastRead) || 'null'); } catch (e) {}
+    if (lr) {
+      var i = findIndex(lr.sargaNo, lr.slokamNo);
+      if (i >= 0) { goTo(i); showToast('Back to your bookmarked verse'); return; }
+    }
+    showToast('No bookmark set yet — tap ★ on a verse to save one');
   }
 
   starBtn.addEventListener('click', function () {
@@ -300,6 +311,7 @@
     var dx = e.changedTouches[0].clientX - touchStartX;
     var dy = e.changedTouches[0].clientY - touchStartY;
     if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      clearHighlight();
       if (dx < 0) setTopic(state.topicIndex + 1); // swipe left -> next topic
       else setTopic(state.topicIndex - 1);        // swipe right -> prev topic
     }
@@ -382,7 +394,7 @@
     }
     searchResults.innerHTML = hits.map(function (h) {
       var v = VERSES[h.index];
-      return '<div class="search-result" data-i="' + h.index + '">' +
+      return '<div class="search-result" data-i="' + h.index + '" data-field="' + h.field + '">' +
         '<div class="meta">Sarga ' + v.SargaNo + ' &middot; Verse ' + v.SlokamNo + ' &middot; ' + h.field + '</div>' +
         '<div class="snippet">' + h.snippet + '</div></div>';
     }).join('');
@@ -402,7 +414,17 @@
   searchResults.addEventListener('click', function (e) {
     var item = e.target.closest('.search-result');
     if (!item) return;
-    goTo(parseInt(item.getAttribute('data-i'), 10));
+    var idx = parseInt(item.getAttribute('data-i'), 10);
+    var field = item.getAttribute('data-field');
+    var q = normalizeTelugu(searchInput.value);
+
+    state.highlightQuery = q; // shown at the destination until the next explicit navigation
+    goTo(idx, false);         // note: goTo/setTopic here never touch the Home bookmark
+
+    var topicIdx = -1;
+    for (var t = 0; t < TOPICS.length; t++) { if (TOPICS[t].key === field) { topicIdx = t; break; } }
+    setTopic(topicIdx >= 0 ? topicIdx : 2); // land on the matched commentary tab (or Akanksha if match was in the sloka itself)
+
     searchOverlay.classList.remove('open');
   });
 
@@ -419,31 +441,7 @@
   }
 
   /* ---------------------------------------------------------
-     10. ICONS (inline SVG, single-color line icons)
-  --------------------------------------------------------- */
-  var STROKE = 'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
-
-  function iconSplit() {
-    return '<svg viewBox="0 0 24 24" ' + STROKE + '><path d="M12 3v6"/><path d="M12 9 6 21"/><path d="M12 9l6 12"/></svg>';
-  }
-  function iconFlow() {
-    return '<svg viewBox="0 0 24 24" ' + STROKE + '><path d="M4 6h10a4 4 0 0 1 0 8H8"/><polyline points="10 10 6 14 10 18"/></svg>';
-  }
-  function iconQuestion() {
-    return '<svg viewBox="0 0 24 24" ' + STROKE + '><circle cx="12" cy="12" r="9"/><path d="M9.2 9a2.8 2.8 0 1 1 3.8 2.6c-.9.4-1.5 1-1.5 2.1"/><line x1="12" y1="17" x2="12" y2="17.1"/></svg>';
-  }
-  function iconLotus() {
-    return '<svg viewBox="0 0 24 24" ' + STROKE + '><path d="M12 21c-4-1.5-7-5-7-9 2 1 4.5 1 7 3 2.5-2 5-3 7-3 0 4-3 7.5-7 9Z"/><path d="M12 12V4"/><path d="M8 7c1.5 1 2.5 2.5 4 5"/><path d="M16 7c-1.5 1-2.5 2.5-4 5"/></svg>';
-  }
-  function iconGrammar() {
-    return '<svg viewBox="0 0 24 24" ' + STROKE + '><path d="M4 19.5V5.5A1.5 1.5 0 0 1 5.5 4H18a1 1 0 0 1 1 1v14.5"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H19"/><line x1="8" y1="8" x2="15" y2="8"/><line x1="8" y1="11.5" x2="13" y2="11.5"/></svg>';
-  }
-  function iconMore() {
-    return '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
-  }
-
-  /* ---------------------------------------------------------
-     11. INIT
+     10. INIT
   --------------------------------------------------------- */
   function init() {
     if (!VERSES.length) {
