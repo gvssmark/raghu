@@ -20,8 +20,11 @@
     return src;
   }
 
+  var SARGA_NAME_BY_NO = {};
+
   var VERSES = normalizeData();
   VERSES.sort(function (a, b) { return (a.SargaNo - b.SargaNo) || (a.SlokamNo - b.SlokamNo); });
+  VERSES.forEach(function (v) { if (!(v.SargaNo in SARGA_NAME_BY_NO)) SARGA_NAME_BY_NO[v.SargaNo] = v.Sarga; });
 
   var TOPICS = [
     { key: 'Padavibhaga', te: 'పదవిభాగ',  glyph: 'ప',    color: '#8C1F28' },
@@ -32,20 +35,40 @@
     { key: 'Others',      te: 'ఇతర',      glyph: 'ఇ',    color: '#6B6255' }
   ];
 
+  function topicTeLabel(key) {
+    if (key === 'Slokam') return 'శ్లోకం';
+    for (var i = 0; i < TOPICS.length; i++) { if (TOPICS[i].key === key) return TOPICS[i].te; }
+    return key;
+  }
+
+  // Sarga display name, taken straight from the data (e.g. "ప్రథమస్పర్గః"),
+  // looked up by SargaNo (populated above from VERSES). Falls back to a
+  // generic label if not found.
+  function sargaLabel(sargaNo) {
+    if (SARGA_NAME_BY_NO[sargaNo]) return SARGA_NAME_BY_NO[sargaNo];
+    return 'సర్గ ' + sargaNo;
+  }
+
   /* ---------------------------------------------------------
      2. STATE (persisted in localStorage)
   --------------------------------------------------------- */
   var LS = {
-    fontSize: 'raghu_fontSize',
+    fontScale: 'raghu_fontScale',
     primaryBookmark: 'raghu_primaryBookmark', // {sargaNo, slokamNo} — set ONLY by Previous/Next
-    saved: 'raghu_savedBookmarks',            // array of {sargaNo, slokamNo} — the starred list
+    saved: 'raghu_savedBookmarks',            // array of {sargaNo, slokamNo, snippet} — the starred list
     lastTopic: 'raghu_lastTopic'
   };
+
+  // Base sizes at fontScale = 1.0. Sloka and commentary text scale by the
+  // same control but keep their own base — so a single A-/A+ adjustment
+  // affects both proportionally without ever looking identical in size.
+  var BASE_SLOKA_PX = 26;
+  var BASE_CONTENT_PX = 17;
 
   var state = {
     index: 0,
     topicIndex: 2,                 // default = Akanksha
-    fontSize: parseInt(localStorage.getItem(LS.fontSize) || '26', 10),
+    fontScale: parseFloat(localStorage.getItem(LS.fontScale) || '1'),
     highlightQuery: null,          // set when arriving via a search result
     searchMode: false              // true after a search jump; Prev/Next won't touch the bookmark while true
   };
@@ -123,8 +146,7 @@
       var cls = (i % 2 === 0) ? 'line-a' : 'line-b';
       return '<div class="sloka-line ' + cls + '">' + highlightLine(line.trim()) + '</div>';
     }).join('');
-    document.documentElement.style.setProperty('--sloka-font-size', state.fontSize + 'px');
-    slokaRef.innerHTML = 'Sarga <b>' + v.SargaNo + '</b> &middot; Verse <b>' + v.SlokamNo + '</b>';
+    slokaRef.innerHTML = '<b>' + escapeHtml(v.Sarga) + '</b> &middot; శ్లోకం <b>' + v.SlokamNo + '</b>';
     starBtn.classList.toggle('saved', isSaved(v));
     bookmarkBanner.hidden = !state.searchMode;
   }
@@ -133,6 +155,7 @@
     var v = VERSES[state.index];
     var topic = TOPICS[state.topicIndex];
     var text = v ? (v[topic.key] || '') : '';
+    contentPanel.scrollTop = 0;
     contentInner.style.animation = 'none';
     void contentInner.offsetWidth;
     contentInner.style.animation = '';
@@ -220,10 +243,15 @@
     var list = getSavedBookmarks();
     var idx = list.findIndex(function (b) { return b.sargaNo === v.SargaNo && b.slokamNo === v.SlokamNo; });
     if (idx >= 0) { list.splice(idx, 1); showToast('Bookmark removed'); }
-    else { list.push({ sargaNo: v.SargaNo, slokamNo: v.SlokamNo }); showToast('Verse saved to bookmarks'); }
+    else {
+      var firstLine = String(v.Slokam || '').split('\n')[0].trim();
+      var snippet = firstLine.length > 45 ? firstLine.slice(0, 45) + '…' : firstLine;
+      list.push({ sargaNo: v.SargaNo, slokamNo: v.SlokamNo, snippet: snippet });
+      showToast('Verse saved to bookmarks');
+    }
     setSavedBookmarks(list);
     starBtn.classList.toggle('saved', isSaved(v));
-    renderMenuBookmarkList();
+    renderMenuBookmarkSummary();
   });
 
   /* ---------------------------------------------------------
@@ -252,13 +280,17 @@
      7. FONT SIZE CONTROL (lives in the hamburger menu)
   --------------------------------------------------------- */
   function applyFontSize() {
-    state.fontSize = Math.max(16, Math.min(44, state.fontSize));
-    document.documentElement.style.setProperty('--sloka-font-size', state.fontSize + 'px');
-    localStorage.setItem(LS.fontSize, state.fontSize);
+    state.fontScale = Math.round(state.fontScale * 10) / 10;
+    state.fontScale = Math.max(0.7, Math.min(1.8, state.fontScale));
+    var slokaPx = Math.round(BASE_SLOKA_PX * state.fontScale);
+    var contentPx = Math.round(BASE_CONTENT_PX * state.fontScale);
+    document.documentElement.style.setProperty('--sloka-font-size', slokaPx + 'px');
+    document.documentElement.style.setProperty('--content-font-size', contentPx + 'px');
+    localStorage.setItem(LS.fontScale, state.fontScale);
   }
-  document.getElementById('mFontInc').addEventListener('click', function () { state.fontSize += 2; applyFontSize(); });
-  document.getElementById('mFontDec').addEventListener('click', function () { state.fontSize -= 2; applyFontSize(); });
-  document.getElementById('mFontReset').addEventListener('click', function () { state.fontSize = 26; applyFontSize(); });
+  document.getElementById('mFontInc').addEventListener('click', function () { state.fontScale += 0.1; applyFontSize(); });
+  document.getElementById('mFontDec').addEventListener('click', function () { state.fontScale -= 0.1; applyFontSize(); });
+  document.getElementById('mFontReset').addEventListener('click', function () { state.fontScale = 1; applyFontSize(); });
 
   /* ---------------------------------------------------------
      8. SEARCH (persists term/results until cleared; navigating
@@ -307,7 +339,7 @@
     searchResults.innerHTML = hits.map(function (h) {
       var v = VERSES[h.index];
       return '<div class="search-result" data-i="' + h.index + '" data-field="' + h.field + '">' +
-        '<div class="meta">Sarga ' + v.SargaNo + ' &middot; Verse ' + v.SlokamNo + ' &middot; ' + h.field + '</div>' +
+        '<div class="meta">' + escapeHtml(v.Sarga) + ' &middot; శ్లోకం ' + v.SlokamNo + ' &middot; ' + escapeHtml(topicTeLabel(h.field)) + '</div>' +
         '<div class="snippet">' + h.snippet + '</div></div>';
     }).join('');
   }
@@ -350,7 +382,7 @@
   var homeBtn = document.getElementById('homeBtn');
 
   function openMenu() {
-    renderMenuBookmarkList();
+    renderMenuBookmarkSummary();
     renderMenuSargaList();
     menuBackdrop.classList.add('open');
     menuDrawer.classList.add('open');
@@ -363,41 +395,84 @@
   document.getElementById('menuCloseBtn').addEventListener('click', closeMenu);
   menuBackdrop.addEventListener('click', closeMenu);
 
-  function renderMenuBookmarkList() {
-    var el = document.getElementById('menuBookmarkList');
+  function sortedBookmarks() {
+    var list = getSavedBookmarks().slice();
+    list.sort(function (a, b) { return (a.sargaNo - b.sargaNo) || (a.slokamNo - b.slokamNo); });
+    return list;
+  }
+
+  function bookmarkRowHtml(b, removeIndexInStorage) {
+    // snippet comes from storage (captured at star-time) so it still displays
+    // correctly even if the underlying verse can no longer be found (e.g. data changed).
+    var snip = b.snippet || '';
+    return '<div class="bm-row" data-sarga="' + b.sargaNo + '" data-sloka="' + b.slokamNo + '">' +
+      '<div><div class="bm-ref">' + escapeHtml(sargaLabel(b.sargaNo)) + ' &middot; శ్లోకం ' + b.slokamNo + '</div>' +
+      '<div class="bm-snip">' + escapeHtml(snip) + '</div></div>' +
+      '<button class="bm-remove" data-remove-i="' + removeIndexInStorage + '">✕</button></div>';
+  }
+
+  function renderMenuBookmarkSummary() {
+    var el = document.getElementById('menuBookmarkSummary');
     var list = getSavedBookmarks();
     if (!list.length) {
       el.innerHTML = '<div class="menu-empty">గుర్తు పెట్టిన శ్లోకాలు లేవు — శ్లోకం పైన ★ నొక్కండి.</div>';
       return;
     }
-    el.innerHTML = list.map(function (b, i) {
-      var v = VERSES[findIndex(b.sargaNo, b.slokamNo)];
-      var snip = v ? String(v.Slokam || '').split('\n')[0] : '';
-      return '<div class="bm-row" data-i="' + i + '">' +
-        '<div><div class="bm-ref">సర్గ ' + b.sargaNo + ' &middot; శ్లోకం ' + b.slokamNo + '</div>' +
-        '<div class="bm-snip">' + escapeHtml(snip) + '</div></div>' +
-        '<button class="bm-remove" data-remove="' + i + '">✕</button></div>';
-    }).join('');
-    el.onclick = function (e) {
-      var removeIdx = e.target.getAttribute('data-remove');
-      if (removeIdx !== null) {
-        var arr = getSavedBookmarks();
-        arr.splice(parseInt(removeIdx, 10), 1);
-        setSavedBookmarks(arr);
-        renderMenuBookmarkList();
-        var cur = VERSES[state.index];
-        if (cur) starBtn.classList.toggle('saved', isSaved(cur));
-        return;
-      }
-      var row = e.target.closest('.bm-row');
-      if (row) {
-        var arr2 = getSavedBookmarks();
-        var b = arr2[parseInt(row.getAttribute('data-i'), 10)];
-        var i = findIndex(b.sargaNo, b.slokamNo);
-        if (i >= 0) { clearHighlight(); state.searchMode = false; goTo(i); closeMenu(); }
-      }
-    };
+    el.innerHTML = '<div class="bm-summary-row"><span class="bm-count">' + list.length + ' శ్లోకాలు గుర్తు పెట్టబడ్డాయి</span>' +
+      '<button id="bmViewAllBtn">అన్నీ చూడండి</button></div>';
+    document.getElementById('bmViewAllBtn').addEventListener('click', openBookmarksModal);
   }
+
+  var bmModalOverlay = document.getElementById('bmModalOverlay');
+  var bmModalList = document.getElementById('bmModalList');
+
+  function openBookmarksModal() {
+    renderBookmarksModalList();
+    bmModalOverlay.classList.add('open');
+  }
+  function closeBookmarksModal() { bmModalOverlay.classList.remove('open'); }
+  document.getElementById('bmModalCloseBtn').addEventListener('click', closeBookmarksModal);
+  bmModalOverlay.addEventListener('click', function (e) { if (e.target === bmModalOverlay) closeBookmarksModal(); });
+
+  function renderBookmarksModalList() {
+    var stored = getSavedBookmarks(); // unsorted, storage order — needed to compute correct remove indices
+    var sorted = sortedBookmarks();
+    if (!sorted.length) {
+      bmModalList.innerHTML = '<div class="search-empty">గుర్తు పెట్టిన శ్లోకాలు లేవు.</div>';
+      return;
+    }
+    bmModalList.innerHTML = sorted.map(function (b) {
+      var storageIdx = stored.findIndex(function (s) { return s.sargaNo === b.sargaNo && s.slokamNo === b.slokamNo; });
+      return bookmarkRowHtml(b, storageIdx);
+    }).join('');
+  }
+
+  bmModalList.addEventListener('click', function (e) {
+    var removeBtn = e.target.closest('.bm-remove');
+    if (removeBtn) {
+      var ri = parseInt(removeBtn.getAttribute('data-remove-i'), 10);
+      var arr = getSavedBookmarks();
+      arr.splice(ri, 1);
+      setSavedBookmarks(arr);
+      renderBookmarksModalList();
+      renderMenuBookmarkSummary();
+      var cur = VERSES[state.index];
+      if (cur) starBtn.classList.toggle('saved', isSaved(cur));
+      return;
+    }
+    var row = e.target.closest('.bm-row');
+    if (row) {
+      var sargaNo = parseInt(row.getAttribute('data-sarga'), 10);
+      var slokamNo = parseInt(row.getAttribute('data-sloka'), 10);
+      var i = findIndex(sargaNo, slokamNo);
+      if (i >= 0) {
+        clearHighlight(); state.searchMode = false; goTo(i);
+        closeBookmarksModal(); closeMenu();
+      } else {
+        showToast('ఈ శ్లోకం ప్రస్తుత డేటాలో కనబడలేదు');
+      }
+    }
+  });
 
   function renderMenuSargaList() {
     var el = document.getElementById('menuSargaList');

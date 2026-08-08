@@ -73,6 +73,7 @@
     padding:8px 14px; background:#FBEFD2; border-bottom:1px solid var(--gold);
     font-family:'Noto Sans Telugu',sans-serif; font-size:13px; color:var(--ink);
   }
+  .bookmark-banner[hidden]{ display:none; }
   .bookmark-banner button{
     background:var(--maroon); color:#fff; border:none; border-radius:16px;
     padding:6px 12px; font-size:12px; font-family:'Noto Sans Telugu',sans-serif;
@@ -146,7 +147,7 @@
   /* ---------- Content panel (swipeable) ---------- */
   .content-panel{ flex:1 1 auto; overflow-y:auto; padding:20px 18px 28px; background:var(--cream-panel); }
   .content-inner{
-    font-family:'Noto Sans Telugu',sans-serif; font-size:17px; line-height:1.85; color:var(--ink);
+    font-family:'Noto Sans Telugu',sans-serif; font-size:var(--content-font-size, 17px); line-height:1.85; color:var(--ink);
     white-space:pre-line; max-width:640px; margin:0 auto; animation: fadein .18s ease;
   }
   @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
@@ -203,14 +204,21 @@
   .menu-bookmark-list, .menu-sarga-list{ display:flex; flex-direction:column; gap:2px; }
   .menu-empty{ font-size:13px; color:var(--ink-soft); font-style:italic; padding:6px 2px; }
 
+  .bm-summary-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .bm-summary-row .bm-count{ font-family:'Noto Sans Telugu',sans-serif; font-size:14px; color:var(--ink-soft); }
+  .bm-summary-row button{
+    background:var(--maroon); color:#fff; border:none; border-radius:16px; padding:6px 13px;
+    font-size:12px; font-family:'Noto Sans Telugu',sans-serif; font-weight:600; cursor:pointer;
+  }
+
   .bm-row{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
-    padding:9px 8px; border-radius:8px; cursor:pointer;
+    padding:11px 14px; border-bottom:1px solid var(--line); cursor:pointer;
   }
   .bm-row:hover{ background:var(--cream-panel); }
-  .bm-row .bm-ref{ font-size:13px; font-weight:600; color:var(--ink); }
-  .bm-row .bm-snip{ font-size:12px; color:var(--ink-soft); font-family:'Noto Sans Telugu',sans-serif; margin-top:2px; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .bm-row .bm-remove{ background:none; border:none; color:#B85C5C; cursor:pointer; font-size:15px; padding:4px 6px; flex:0 0 auto; }
+  .bm-row .bm-ref{ font-size:13px; font-weight:600; color:var(--ink); font-family:'Noto Sans Telugu',sans-serif; }
+  .bm-row .bm-snip{ font-size:12.5px; color:var(--ink-soft); font-family:'Noto Sans Telugu',sans-serif; margin-top:2px; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bm-row .bm-remove{ background:none; border:none; color:#B85C5C; cursor:pointer; font-size:16px; padding:6px 8px; flex:0 0 auto; }
 
   .sarga-group{ border-radius:8px; overflow:hidden; }
   .sarga-header{
@@ -330,7 +338,7 @@
       </section>
       <section class="menu-section">
         <h4>గుర్తు పెట్టిన శ్లోకాలు</h4>
-        <div class="menu-bookmark-list" id="menuBookmarkList"></div>
+        <div id="menuBookmarkSummary"></div>
       </section>
       <section class="menu-section">
         <h4>సర్గలు</h4>
@@ -338,6 +346,17 @@
       </section>
     </div>
   </aside>
+
+  <!-- BOOKMARKS MODAL (sorted, scrollable list of all starred slokas) -->
+  <div class="search-overlay" id="bmModalOverlay">
+    <div class="search-box">
+      <div class="search-input-row">
+        <span style="font-family:'Noto Sans Telugu',sans-serif; font-weight:700; color:var(--maroon); flex:1;">గుర్తు పెట్టిన శ్లోకాలు</span>
+        <button class="icon-btn" id="bmModalCloseBtn" style="border:none;">✕</button>
+      </div>
+      <div class="search-results" id="bmModalList"></div>
+    </div>
+  </div>
 
   <div class="toast" id="toast"></div>
 
