@@ -70,7 +70,7 @@
     topicIndex: 2,                 // default = Akanksha
     fontScale: parseFloat(localStorage.getItem(LS.fontScale) || '1'),
     highlightQuery: null,          // set when arriving via a search result
-    searchMode: false              // true after a search jump; Prev/Next won't touch the bookmark while true
+    browsingAway: false            // true after jumping via search/bookmarks/sarga-list; Prev/Next won't touch the primary bookmark while true
   };
 
   function clearHighlight() { state.highlightQuery = null; }
@@ -148,7 +148,7 @@
     }).join('');
     slokaRef.innerHTML = '<b>' + escapeHtml(v.Sarga) + '</b> &middot; శ్లోకం <b>' + v.SlokamNo + '</b>';
     starBtn.classList.toggle('saved', isSaved(v));
-    bookmarkBanner.hidden = !state.searchMode;
+    bookmarkBanner.hidden = !state.browsingAway;
   }
 
   function renderContent() {
@@ -210,21 +210,22 @@
      4. FOOTER: PREVIOUS / MENU / NEXT
      Previous & Next are the PRIMARY bookmark setters (per spec) —
      every tap updates the stored bookmark UNLESS the reader is
-     currently exploring a search result (searchMode), in which
-     case browsing must not disturb the real bookmark.
+     currently "browsing away" (arrived via search / the starred
+     bookmarks list / the Sarga list), in which case stepping
+     through verses must not silently overwrite the real bookmark.
   --------------------------------------------------------- */
   function stepAndBookmark(delta) {
     clearHighlight();
     var newIndex = state.index + delta;
     if (newIndex < 0 || newIndex >= VERSES.length) return;
     goTo(newIndex);
-    if (!state.searchMode) setPrimaryBookmark(VERSES[state.index]);
+    if (!state.browsingAway) setPrimaryBookmark(VERSES[state.index]);
   }
   prevBtn.addEventListener('click', function () { stepAndBookmark(-1); });
   nextBtn.addEventListener('click', function () { stepAndBookmark(1); });
 
   document.getElementById('backToBookmarkBtn').addEventListener('click', function () {
-    state.searchMode = false;
+    state.browsingAway = false;
     clearHighlight();
     var bm = getPrimaryBookmark();
     if (bm) {
@@ -363,7 +364,7 @@
     var field = item.getAttribute('data-field');
     var q = normalizeTelugu(searchInput.value);
 
-    state.searchMode = true;         // Prev/Next won't touch the primary bookmark until "back to bookmark"
+    state.browsingAway = true;       // Prev/Next won't touch the primary bookmark until "back to bookmark"
     state.highlightQuery = q;        // shown at the destination until the next explicit navigation
     goTo(idx, false);                // never touches the primary bookmark
 
@@ -469,7 +470,7 @@
       var slokamNo = parseInt(row.getAttribute('data-sloka'), 10);
       var i = findIndex(sargaNo, slokamNo);
       if (i >= 0) {
-        clearHighlight(); state.searchMode = false; goTo(i);
+        clearHighlight(); state.browsingAway = true; goTo(i);
         closeBookmarksModal(); closeMenu();
       } else {
         showToast('ఈ శ్లోకం ప్రస్తుత డేటాలో కనబడలేదు');
@@ -519,7 +520,7 @@
       if (item) {
         var idx = parseInt(item.getAttribute('data-i'), 10);
         clearHighlight();
-        state.searchMode = false;
+        state.browsingAway = true;
         goTo(idx);
         closeMenu();
       }
