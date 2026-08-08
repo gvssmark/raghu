@@ -51,6 +51,10 @@ self.addEventListener('fetch', function (event) {
   var req = event.request;
   if (req.method !== 'GET') return;
 
+  // updated.js is the version beacon — it must always be a real network hit
+  // (with cache-busting handled by the page itself), never served from cache.
+  if (req.url.indexOf('updated.js') !== -1) return;
+
   var isDataFile = req.url.indexOf(DATA_URL) === 0;
   var isSameOrigin = req.url.indexOf(self.location.origin) === 0;
 

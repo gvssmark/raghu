@@ -420,7 +420,10 @@
     }
     el.innerHTML = '<div class="bm-summary-row"><span class="bm-count">' + list.length + ' శ్లోకాలు గుర్తు పెట్టబడ్డాయి</span>' +
       '<button id="bmViewAllBtn">అన్నీ చూడండి</button></div>';
-    document.getElementById('bmViewAllBtn').addEventListener('click', openBookmarksModal);
+    document.getElementById('bmViewAllBtn').addEventListener('click', function () {
+      closeMenu();
+      openBookmarksModal();
+    });
   }
 
   var bmModalOverlay = document.getElementById('bmModalOverlay');
@@ -524,7 +527,93 @@
   }
 
   /* ---------------------------------------------------------
-     10. TOAST
+     11. DATA VERSION TRACKING (via updated.js -> LAST_UPDATED)
+     Format confirmed as "ddmmyyyyhhmmss" (14 digits), e.g. the
+     source currently defines: const LAST_UPDATED = "08082026124636";
+     We extract the first 14-digit run so this keeps working even
+     if the wrapping syntax around it changes slightly.
+  --------------------------------------------------------- */
+  var UPDATED_URL = 'https://gvssmark.github.io/raghu/updated.js';
+  var LS_DATA_VERSION = 'raghu_dataVersion';
+
+  function extractTimestamp(raw) {
+    if (!raw) return null;
+    var m = String(raw).match(/\d{14}/);
+    return m ? m[0] : null;
+  }
+
+  function formatTimestamp(ts) {
+    // ddmmyyyyhhmmss
+    if (!ts || ts.length !== 14) return ts || '';
+    var dd = ts.slice(0, 2), mo = ts.slice(2, 4), yyyy = ts.slice(4, 8);
+    var hh = ts.slice(8, 10), mi = ts.slice(10, 12), ss = ts.slice(12, 14);
+    return dd + '-' + mo + '-' + yyyy + ' ' + hh + ':' + mi + ':' + ss;
+  }
+
+  function updateLastUpdatedLabel(ts) {
+    var el = document.getElementById('lastUpdatedLabel');
+    el.textContent = ts ? ('చివరి నవీకరణ: ' + formatTimestamp(ts)) : '';
+  }
+
+  function handleTimestamp(ts, isManualCheck) {
+    if (!ts) {
+      if (isManualCheck) showToast('తనిఖీ విఫలమైంది — మళ్ళీ ప్రయత్నించండి');
+      return;
+    }
+    updateLastUpdatedLabel(ts);
+    var prev = localStorage.getItem(LS_DATA_VERSION);
+    localStorage.setItem(LS_DATA_VERSION, ts);
+    if (prev && prev !== ts) {
+      document.getElementById('updateBanner').hidden = false;
+    } else if (isManualCheck) {
+      showToast('డేటా తాజాగా ఉంది');
+    }
+  }
+
+  // Initial check: LAST_UPDATED was loaded via the static <script src="updated.js">
+  // tag in the page head, so it's already available (or undefined if that failed).
+  function checkInitialTimestamp() {
+    var ts = (typeof LAST_UPDATED !== 'undefined' && !window.__updatedExternalFailed) ? extractTimestamp(LAST_UPDATED) : null;
+    handleTimestamp(ts, false);
+  }
+
+  // Manual re-check: inject a fresh, cache-busted <script> so we get a live value
+  // rather than whatever was loaded at page-load time.
+  function checkForUpdateManually() {
+    var s = document.createElement('script');
+    var done = false;
+    function finish(ts) {
+      if (done) return;
+      done = true;
+      s.parentNode && s.parentNode.removeChild(s);
+      handleTimestamp(ts, true);
+    }
+    s.onload = function () { finish(extractTimestamp(typeof LAST_UPDATED !== 'undefined' ? LAST_UPDATED : null)); };
+    s.onerror = function () { finish(null); };
+    s.src = UPDATED_URL + '?_=' + Date.now();
+    document.body.appendChild(s);
+    setTimeout(function () { finish(null); }, 8000); // safety timeout
+  }
+  document.getElementById('checkUpdateBtn').addEventListener('click', checkForUpdateManually);
+
+  // "రిఫ్రెష్ చేయండి" on the update banner: purge any cached copy of raghu.json
+  // (so the SW's stale-while-revalidate doesn't just re-serve the old version)
+  // then reload to pick up the fresh data.
+  document.getElementById('refreshDataBtn').addEventListener('click', function () {
+    var done = function () { window.location.reload(); };
+    if ('caches' in window) {
+      caches.keys().then(function (keys) {
+        return Promise.all(keys.map(function (k) {
+          return caches.open(k).then(function (c) { return c.delete('https://gvssmark.github.io/raghu/raghu.json'); });
+        }));
+      }).then(done).catch(done);
+    } else {
+      done();
+    }
+  });
+
+  /* ---------------------------------------------------------
+     12. TOAST
   --------------------------------------------------------- */
   var toastEl = document.getElementById('toast');
   var toastTimer = null;
@@ -536,7 +625,7 @@
   }
 
   /* ---------------------------------------------------------
-     11. PWA — register service worker
+     13. PWA — register service worker
   --------------------------------------------------------- */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
@@ -545,7 +634,7 @@
   }
 
   /* ---------------------------------------------------------
-     12. INIT
+     14. INIT
   --------------------------------------------------------- */
   function init() {
     if (!VERSES.length) {
@@ -565,6 +654,7 @@
     state.topicIndex = (savedTopic >= 0 && savedTopic < TOPICS.length) ? savedTopic : 2;
     goTo(startIndex, false);
     applyFontSize();
+    checkInitialTimestamp();
   }
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
