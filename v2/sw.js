@@ -1,4 +1,4 @@
-const CACHE_NAME = "raghu-shell-v2";
+const CACHE_NAME = "raghu-shell-v1";
 const SHELL_FILES = [
   "./",
   "./index.html",
