@@ -520,8 +520,9 @@
       if (item) {
         var idx = parseInt(item.getAttribute('data-i'), 10);
         clearHighlight();
-        state.browsingAway = true;
+        state.browsingAway = false;
         goTo(idx);
+        setPrimaryBookmark(VERSES[idx]); // selecting from the side menu is a deliberate jump — it becomes the new bookmark
         closeMenu();
       }
     };
