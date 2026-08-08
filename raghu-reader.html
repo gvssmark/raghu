@@ -133,23 +133,29 @@
   /* ---------- Topic icon row ---------- */
   .topic-row{
     flex:0 0 auto;
-    display:flex; gap:4px; padding:10px 10px 0;
-    overflow-x:auto; scrollbar-width:none; background:var(--cream);
+    display:flex; padding:6px 4px 0;
+    background:var(--cream);
     border-bottom:1px solid var(--line);
   }
-  .topic-row::-webkit-scrollbar{display:none;}
   .topic-btn{
-    flex:1 0 auto; min-width:74px;
-    display:flex; flex-direction:column; align-items:center; gap:4px;
-    padding:8px 6px 10px; background:none; border:none; cursor:pointer;
-    color:var(--ink-soft); border-bottom:3px solid transparent;
-    transition:.15s;
+    flex:1 1 0; min-width:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:3px;
+    padding:6px 2px 8px; background:none; border:none; cursor:pointer;
+    color:var(--topic-color, var(--ink-soft)); opacity:.55;
+    border-bottom:3px solid transparent;
+    transition:opacity .15s, border-color .15s, background-color .15s;
+    border-radius:8px 8px 0 0;
   }
-  .topic-btn svg{width:22px;height:22px;}
-  .topic-btn .label{font-size:11px; font-weight:600; letter-spacing:.01em;}
-  .topic-btn .label-te{font-size:10px; font-family:'Noto Sans Telugu',sans-serif; color:var(--ink-soft); opacity:.75;}
-  .topic-btn.active{ color:var(--maroon); border-bottom-color:var(--maroon); }
-  .topic-btn.active .label-te{color:var(--maroon);}
+  .topic-btn svg{width:23px;height:23px; flex:0 0 auto;}
+  .topic-btn .label-te{
+    font-size:12px; font-weight:600; font-family:'Noto Sans Telugu',sans-serif;
+    line-height:1.1; white-space:nowrap;
+  }
+  .topic-btn.active{
+    opacity:1; border-bottom-color:var(--topic-color);
+    background:color-mix(in srgb, var(--topic-color) 10%, transparent);
+  }
+  .topic-btn:active{ opacity:.85; }
 
   /* ---------- Content panel (swipeable) ---------- */
   .content-panel{
@@ -165,6 +171,9 @@
   }
   @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
   .content-empty{ color:var(--ink-soft); font-style:italic; text-align:center; margin-top:30px; }
+  .content-line{ padding:3px 0; }
+  .content-line.line-a{ color:var(--maroon); }
+  .content-line.line-b{ color:var(--indigo); }
   .swipe-hint{
     text-align:center; font-size:11px; color:var(--ink-soft); opacity:.6; margin-top:22px;
   }
@@ -303,9 +312,9 @@
 
   <div class="toast" id="toast"></div>
 
-  <!-- Attempt to load full dataset from GitHub; falls back to embedded sample if it fails -->
-  <script src="https://gvssmark.github.io/raghu/raghu.json" onerror="window.__raghuExternalFailed=true"></script>
-
-    <script src="app.js"></script>
+  <!-- Data source: raghu.json, embedded directly below for now.
+       IndexedDB-backed loading will be wired in once the full dataset is ready. -->
+ 
+  <script src="app.js"></script>
 </body>
 </html>

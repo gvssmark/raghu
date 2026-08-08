@@ -7,9 +7,9 @@
         already an array of objects).
   --------------------------------------------------------- */
   function normalizeData() {
-    var src = (typeof raghu !== 'undefined' && !window.__raghuExternalFailed) ? raghu : RAGHU_FALLBACK;
+    var src = RAGHU_FALLBACK;
     if (!src || !src.length) return [];
-    // If it's the [header, ...rows] array-of-arrays shape, convert to objects.
+    // If it's the [header, ...rows] array-of-arrays shape (raw raghu.json), convert to objects.
     if (Array.isArray(src[0])) {
       var header = src[0];
       return src.slice(1).map(function (row) {
@@ -18,7 +18,7 @@
         return obj;
       });
     }
-    // Already array of objects (fallback / pre-converted source).
+    // Already array of objects.
     return src;
   }
 
@@ -30,12 +30,12 @@
   });
 
   var TOPICS = [
-    { key: 'Padavibhaga', label: 'Padavibhaga', te: 'పదవిభాగ', icon: iconSplit() },
-    { key: 'Anvyaya',     label: 'Anvyaya',     te: 'అన్వయ',   icon: iconFlow() },
-    { key: 'Akanksha',    label: 'Akanksha',    te: 'ఆకాంక్ష', icon: iconQuestion() },
-    { key: 'Bhava',       label: 'Bhava',       te: 'భావ',     icon: iconLotus() },
-    { key: 'Vyakarana',   label: 'Vyakarana',   te: 'వ్యాకరణ', icon: iconGrammar() },
-    { key: 'Others',      label: 'Others',      te: 'ఇతర',     icon: iconMore() }
+    { key: 'Padavibhaga', te: 'పదవిభాగ',  color: '#8C1F28', icon: iconSplit() },
+    { key: 'Anvyaya',     te: 'అన్వయ',    color: '#1E3A5F', icon: iconFlow() },
+    { key: 'Akanksha',    te: 'ఆకాంక్ష',  color: '#B8862E', icon: iconQuestion() },
+    { key: 'Bhava',       te: 'భావ',      color: '#6B3FA0', icon: iconLotus() },
+    { key: 'Vyakarana',   te: 'వ్యాకరణ', color: '#2E7D5B', icon: iconGrammar() },
+    { key: 'Others',      te: 'ఇతర',      color: '#6B6255', icon: iconMore() }
   ];
 
   /* ---------------------------------------------------------
@@ -90,7 +90,8 @@
     TOPICS.forEach(function (t, i) {
       var btn = document.createElement('button');
       btn.className = 'topic-btn' + (i === state.topicIndex ? ' active' : '');
-      btn.innerHTML = t.icon + '<span class="label">' + t.label + '</span><span class="label-te">' + t.te + '</span>';
+      btn.style.setProperty('--topic-color', t.color);
+      btn.innerHTML = t.icon + '<span class="label-te">' + t.te + '</span>';
       btn.addEventListener('click', function () { setTopic(i); });
       topicRow.appendChild(btn);
     });
@@ -112,7 +113,9 @@
 
     slokaRef.innerHTML = 'Sarga <b>' + v.SargaNo + '</b> &middot; Verse <b>' + v.SlokamNo + '</b>';
     starBtn.classList.toggle('saved', isSaved(v));
-    setLastRead(v);
+    // Note: lastRead (the Home-button bookmark) is intentionally NOT updated here.
+    // Browsing via Next/Previous/Search must never disturb the bookmark — it only
+    // changes when the reader explicitly stars a verse (see starBtn handler below).
   }
 
   function renderContent() {
@@ -122,10 +125,19 @@
     contentInner.style.animation = 'none';
     void contentInner.offsetWidth; // restart fade-in animation
     contentInner.style.animation = '';
-    if (text && String(text).trim().length) {
-      contentInner.innerHTML = escapeHtml(String(text).trim());
+    if (!text || !String(text).trim().length) {
+      contentInner.innerHTML = '<div class="content-empty">(ఈ శ్లోకమునకు ' + topic.te + ' లేదు)</div>';
+      return;
+    }
+    if (topic.key === 'Akanksha') {
+      // Akanksha is a Q&A-style breakdown, one point per line — alternate red/blue like the sloka.
+      var lines = String(text).split('\n').filter(function (l) { return l.trim().length; });
+      contentInner.innerHTML = lines.map(function (line, i) {
+        var cls = (i % 2 === 0) ? 'line-a' : 'line-b';
+        return '<div class="content-line ' + cls + '">' + escapeHtml(line.trim()) + '</div>';
+      }).join('');
     } else {
-      contentInner.innerHTML = '<div class="content-empty">(' + topic.label + ' not available for this verse)</div>';
+      contentInner.innerHTML = escapeHtml(String(text).trim());
     }
   }
 
@@ -203,12 +215,26 @@
     var idx = list.findIndex(function (b) { return b.sargaNo === v.SargaNo && b.slokamNo === v.SlokamNo; });
     if (idx >= 0) {
       list.splice(idx, 1);
+      setSavedBookmarks(list);
+      // If the verse we just un-starred was the active Home bookmark, fall back
+      // to the most recently saved remaining bookmark (or clear it entirely).
+      var lr = null;
+      try { lr = JSON.parse(localStorage.getItem(LS.lastRead) || 'null'); } catch (e) {}
+      if (lr && lr.sargaNo === v.SargaNo && lr.slokamNo === v.SlokamNo) {
+        if (list.length) {
+          var fallback = list[list.length - 1];
+          localStorage.setItem(LS.lastRead, JSON.stringify(fallback));
+        } else {
+          localStorage.removeItem(LS.lastRead);
+        }
+      }
       showToast('Bookmark removed');
     } else {
       list.push({ sargaNo: v.SargaNo, slokamNo: v.SlokamNo });
+      setSavedBookmarks(list);
+      setLastRead(v); // starring a verse also sets it as the Home bookmark
       showToast('Verse saved to bookmarks');
     }
-    setSavedBookmarks(list);
     starBtn.classList.toggle('saved', isSaved(v));
   });
 
@@ -309,8 +335,8 @@
 
   document.getElementById('searchOpenBtn').addEventListener('click', function () {
     searchOverlay.classList.add('open');
-    searchInput.value = '';
-    searchResults.innerHTML = '';
+    // Deliberately NOT clearing searchInput/searchResults here — the term and
+    // results should persist across opens/closes until the reader clears the box.
     setTimeout(function () { searchInput.focus(); }, 50);
   });
   document.getElementById('searchCloseBtn').addEventListener('click', function () {
