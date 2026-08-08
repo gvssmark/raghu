@@ -2,7 +2,7 @@
 <html lang="te">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>రఘువంశము — Raghuvamsha Reader</title>
 
 <!-- PWA -->
@@ -32,16 +32,24 @@
   }
 
   *{box-sizing:border-box;}
-  html,body{
-    margin:0; padding:0; height:100%;
+  html{
+    height:100%;
+    background:var(--cream);
+  }
+  body{
+    margin:0; padding:0;
     background:var(--cream);
     color:var(--ink);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-tap-highlight-color: transparent;
-    overscroll-behavior-y: contain;
-  }
-  body{
-    display:flex; flex-direction:column; height:100vh; height:100dvh;
+    /* Pin the whole page to the viewport so iOS Safari has nothing left to
+       rubber-band/bounce — that bounce is what reveals white space on a
+       long pull-down. All real scrolling happens inside the panels below,
+       each of which declares its own overscroll-behavior + momentum scroll. */
+    position:fixed; inset:0;
+    overflow:hidden;
+    overscroll-behavior:none;
+    display:flex; flex-direction:column;
   }
 
   /* ---------- Header ---------- */
@@ -49,6 +57,9 @@
     flex:0 0 auto;
     display:flex; align-items:center; justify-content:space-between;
     padding:10px 14px;
+    padding-top: calc(10px + env(safe-area-inset-top));
+    padding-left: calc(14px + env(safe-area-inset-left));
+    padding-right: calc(14px + env(safe-area-inset-right));
     border-bottom:1px solid var(--line);
     background:linear-gradient(180deg,#FDF9F0,var(--cream));
   }
@@ -95,7 +106,7 @@
     flex:1; border:none; outline:none; font-size:17px; font-family:'Noto Sans Telugu','Inter',sans-serif;
     background:transparent; color:var(--ink);
   }
-  .search-results{ overflow-y:auto; }
+  .search-results{ overflow-y:auto; overscroll-behavior:none; -webkit-overflow-scrolling:touch; }
   .search-result{ padding:12px 14px; border-bottom:1px solid var(--line); cursor:pointer; }
   .search-result:hover{background:var(--cream-panel);}
   .search-result .meta{font-size:11px; color:var(--gold); font-weight:600; letter-spacing:.03em; text-transform:uppercase; margin-bottom:3px;}
@@ -145,7 +156,7 @@
   .topic-btn:active{ opacity:.85; }
 
   /* ---------- Content panel (swipeable) ---------- */
-  .content-panel{ flex:1 1 auto; overflow-y:auto; padding:20px 18px 28px; background:var(--cream-panel); }
+  .content-panel{ flex:1 1 auto; overflow-y:auto; overscroll-behavior:none; -webkit-overflow-scrolling:touch; padding:20px 18px 28px; background:var(--cream-panel); }
   .content-inner{
     font-family:'Noto Sans Telugu',sans-serif; font-size:var(--content-font-size, 17px); line-height:1.85; color:var(--ink);
     white-space:pre-line; max-width:640px; margin:0 auto; animation: fadein .18s ease;
@@ -157,7 +168,12 @@
   .content-line.line-b{ color:var(--indigo); }
 
   /* ---------- Footer nav ---------- */
-  .app-footer{ flex:0 0 auto; display:flex; border-top:1px solid var(--line); background:#fff; }
+  .app-footer{
+    flex:0 0 auto; display:flex; border-top:1px solid var(--line); background:#fff;
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
   .foot-btn{
     flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
     padding:9px 4px 8px; background:none; border:none; cursor:pointer; color:var(--ink-soft);
@@ -179,14 +195,17 @@
     background:var(--cream); z-index:71; box-shadow:var(--shadow);
     transform:translateX(-100%); transition:transform .22s ease;
     display:flex; flex-direction:column;
+    padding-left: env(safe-area-inset-left);
+    padding-bottom: env(safe-area-inset-bottom);
   }
   .menu-drawer.open{ transform:translateX(0); }
   .menu-head{
     flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
     padding:14px 16px; border-bottom:1px solid var(--line);
+    padding-top: calc(14px + env(safe-area-inset-top));
   }
   .menu-title{ font-family:'Noto Serif Telugu',serif; font-weight:700; color:var(--maroon); font-size:17px; }
-  .menu-body{ flex:1 1 auto; overflow-y:auto; padding:6px 0 20px; }
+  .menu-body{ flex:1 1 auto; overflow-y:auto; overscroll-behavior:none; -webkit-overflow-scrolling:touch; padding:6px 0 20px; }
   .menu-section{ padding:14px 16px; border-bottom:1px solid var(--line); }
   .menu-section h4{
     margin:0 0 10px; font-size:12px; letter-spacing:.04em; text-transform:uppercase;
