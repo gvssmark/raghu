@@ -5,35 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>రఘువంశము — Raghuvamsha Reader</title>
 
-<script>
-  /* iOS Safari/WebKit bug workaround: 100dvh is supposed to track the real
-     visible viewport, but WebKit only recomputes it in response to scrolling
-     on the *document* — and this app intentionally sets body{overflow:hidden}
-     (all real scrolling happens in inner panels), so on iOS the dvh value can
-     get "stuck" at whatever it was on first paint. That's most visible in
-     home-screen/standalone mode, where it shows up as a gap under the footer
-     (or the footer being pushed off-screen) that never corrects itself.
-     Android's WebView/Chrome doesn't have this bug, which is why it only
-     shows up on iPhone. Fix: compute the real height in JS from
-     visualViewport (falls back to innerHeight) and drive layout off that via
-     a custom property, re-running on every resize/orientation/visualViewport
-     event so it tracks address-bar show/hide and the keyboard too. */
-  (function () {
-    function setAppHeight () {
-      var vv = window.visualViewport;
-      var h = vv ? vv.height : window.innerHeight;
-      document.documentElement.style.setProperty('--app-vh', h + 'px');
-    }
-    setAppHeight();
-    window.addEventListener('resize', setAppHeight);
-    window.addEventListener('orientationchange', setAppHeight);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', setAppHeight);
-      window.visualViewport.addEventListener('scroll', setAppHeight);
-    }
-  })();
-</script>
-
 <!-- PWA -->
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#FBF6EC">
@@ -77,9 +48,14 @@
        leaving a gap below the footer). overflow:hidden means body itself has
        nothing to scroll/bounce; all real scrolling happens inside the panels
        below, each with its own overscroll-behavior + momentum scroll. */
+    /* Roughly fills the viewport (dvh with a vh fallback) — no longer needs to
+       be pixel-exact, since the footer is now independently pinned to the true
+       bottom edge via position:fixed (see .app-footer) rather than relying on
+       this height matching the real viewport precisely. overflow:hidden means
+       body itself has nothing to scroll/bounce; all real scrolling happens
+       inside the panels below, each with its own overscroll-behavior. */
     height:100vh;   /* fallback for older engines */
     height:100dvh;
-    height:var(--app-vh, 100dvh);  /* JS-corrected value, see <script> in <head> */
     overflow:hidden;
     overscroll-behavior:none;
     display:flex; flex-direction:column;
@@ -189,7 +165,11 @@
   .topic-btn:active{ opacity:.85; }
 
   /* ---------- Content panel (swipeable) ---------- */
-  .content-panel{ flex:1 1 auto; overflow-y:auto; overscroll-behavior:none; -webkit-overflow-scrolling:touch; padding:20px 18px 28px; background:var(--cream-panel); }
+  .content-panel{
+    flex:1 1 auto; overflow-y:auto; overscroll-behavior:none; -webkit-overflow-scrolling:touch;
+    padding:20px 18px calc(64px + env(safe-area-inset-bottom));
+    background:var(--cream-panel);
+  }
   .content-inner{
     font-family:'Noto Sans Telugu',sans-serif; font-size:var(--content-font-size, 17px); line-height:1.85; color:var(--ink);
     white-space:pre-line; max-width:640px; margin:0 auto; animation: fadein .18s ease;
@@ -201,28 +181,20 @@
   .content-line.line-b{ color:var(--indigo); }
 
   /* ---------- Footer nav ---------- */
+  /* Pinned directly to the true device bottom edge via position:fixed, taken
+     completely out of the body flex flow — this is the pattern verified
+     working in the sibling Pothana project. It means the footer's position
+     no longer depends on body's height calculation being exactly correct
+     (which is what every previous attempt here was chasing); position:fixed
+     + bottom:0 is resolved reliably by iOS regardless of any dvh/viewport
+     ambiguity elsewhere. .content-panel below reserves matching space via
+     padding-bottom so its content never sits hidden underneath the footer. */
   .app-footer{
-    flex:0 0 auto; display:flex; border-top:1px solid var(--line); background:#fff;
+    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    display:flex; border-top:1px solid var(--line); background:#fff;
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
-    position:relative; z-index:2;
-  }
-  /* Belt-and-suspenders fix for the iOS footer gap: rather than depending on
-     body's computed height exactly matching the true viewport (vh/dvh/JS
-     visualViewport tricks all rely on that, and evidently none of them landed
-     reliably), this strip is pinned directly to the real device bottom edge
-     via position:fixed + bottom:0, which iOS resolves correctly regardless of
-     any viewport-height ambiguity elsewhere. It sits behind the footer
-     (z-index) and is only as tall as the safe area, painted the same white as
-     the footer — so even if body's box falls slightly short of the true
-     bottom, this closes the gap with the right color instead of showing cream. */
-  .footer-safe-fill{
-    position:fixed; left:0; right:0; bottom:0;
-    height:max(env(safe-area-inset-bottom), 12px);
-    background:#fff;
-    z-index:1;
-    pointer-events:none;
   }
   .foot-btn{
     flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
@@ -384,7 +356,6 @@
       <span class="flabel">Next</span>
     </button>
   </footer>
-  <div class="footer-safe-fill" aria-hidden="true"></div>
 
   <!-- SEARCH OVERLAY -->
   <div class="search-overlay" id="searchOverlay">
