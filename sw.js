@@ -7,7 +7,7 @@
 // Bump CACHE_VERSION whenever app.js/index.html/CSS changes, so old
 // clients pick up the new files promptly instead of waiting on the
 // background revalidation alone.
-var CACHE_VERSION = 'raghu-v6'; // bumped: index.html changed (iOS footer/viewport-height fix)
+var CACHE_VERSION = 'raghu-v7'; // bumped: footer safe-area fill added
 
 var APP_SHELL = [
   './index.html',
