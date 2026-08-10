@@ -840,10 +840,17 @@
 
   /* ---------------------------------------------------------
      13. PWA — register service worker
+     updateViaCache:'none' + a version-tagged URL ensure the browser
+     never serves a stale sw.js from its own HTTP cache when checking
+     for updates — belt-and-suspenders on top of the Cache API logic
+     inside sw.js itself. Bump SW_BUILD alongside CACHE_VERSION in
+     sw.js on every deploy that changes sw.js/app.js/index.html.
   --------------------------------------------------------- */
+  var SW_BUILD = 'v9';
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js').catch(function () { /* offline support unavailable; app still works online */ });
+      navigator.serviceWorker.register('./sw.js?build=' + SW_BUILD, { updateViaCache: 'none' })
+        .catch(function () { /* offline support unavailable; app still works online */ });
     });
   }
 
