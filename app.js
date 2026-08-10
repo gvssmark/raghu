@@ -2,6 +2,169 @@
   'use strict';
 
   /* ---------------------------------------------------------
+     0. DIAGNOSTICS — an in-memory activity log + environment
+        snapshot, exportable as a shareable text file. Built
+        specifically to debug the iOS footer/safe-area class of
+        issues without relying on screenshots: it captures exact
+        pixel measurements (footer position vs. true viewport
+        bottom, safe-area inset values, visualViewport behavior)
+        that a screenshot alone can't show.
+  --------------------------------------------------------- */
+  var DIAG_LOG = [];
+  var DIAG_MAX = 300;
+  function logEvent(type, detail) {
+    DIAG_LOG.push({ t: Date.now(), type: type, detail: detail || '' });
+    if (DIAG_LOG.length > DIAG_MAX) DIAG_LOG.shift();
+  }
+
+  window.addEventListener('error', function (e) {
+    logEvent('error', (e.message || 'unknown') + ' @ ' + (e.filename || '') + ':' + (e.lineno || ''));
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    logEvent('unhandledrejection', String(e.reason));
+  });
+
+  function readSafeAreaInsets() {
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed; top:0; left:0; width:0; height:0; visibility:hidden; ' +
+      'padding-top:env(safe-area-inset-top); padding-right:env(safe-area-inset-right); ' +
+      'padding-bottom:env(safe-area-inset-bottom); padding-left:env(safe-area-inset-left);';
+    document.body.appendChild(probe);
+    var cs = getComputedStyle(probe);
+    var insets = { top: cs.paddingTop, right: cs.paddingRight, bottom: cs.paddingBottom, left: cs.paddingLeft };
+    document.body.removeChild(probe);
+    return insets;
+  }
+
+  function measureFooterGap() {
+    var footer = document.querySelector('.app-footer');
+    if (!footer) return null;
+    var rect = footer.getBoundingClientRect();
+    var vv = window.visualViewport;
+    return {
+      footerTop: round1(rect.top), footerBottom: round1(rect.bottom), footerHeight: round1(rect.height),
+      windowInnerHeight: window.innerHeight,
+      visualViewportHeight: vv ? round1(vv.height) : null,
+      visualViewportOffsetTop: vv ? round1(vv.offsetTop) : null,
+      gapVsWindow: round1(window.innerHeight - rect.bottom),
+      gapVsVisualViewport: vv ? round1((vv.height + vv.offsetTop) - rect.bottom) : null
+    };
+  }
+  function round1(n) { return Math.round(n * 10) / 10; }
+
+  function envSnapshot() {
+    var insets = readSafeAreaInsets();
+    var gap = measureFooterGap();
+    var vv = window.visualViewport;
+    var isStandaloneDisplay = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+    var isIosStandalone = window.navigator && window.navigator.standalone === true;
+    return {
+      userAgent: navigator.userAgent,
+      standaloneDisplayMode: isStandaloneDisplay,
+      iosStandaloneFlag: isIosStandalone,
+      screen: screen.width + 'x' + screen.height + ' @' + (window.devicePixelRatio || 1) + 'x',
+      windowInner: window.innerWidth + 'x' + window.innerHeight,
+      visualViewport: vv ? (round1(vv.width) + 'x' + round1(vv.height) + ' offsetTop=' + round1(vv.offsetTop)) : 'unsupported',
+      docElementClientHeight: document.documentElement.clientHeight,
+      bodyComputedHeight: getComputedStyle(document.body).height,
+      safeAreaInsets: insets,
+      footerGap: gap
+    };
+  }
+
+  function buildDiagnosticText() {
+    var env = envSnapshot();
+    var lines = [];
+    lines.push('Raghuvamsha Reader — Diagnostic Report');
+    lines.push('Generated: ' + new Date().toISOString());
+    lines.push('');
+    lines.push('=== ENVIRONMENT ===');
+    lines.push('User Agent: ' + env.userAgent);
+    lines.push('Standalone (display-mode): ' + env.standaloneDisplayMode);
+    lines.push('Standalone (navigator.standalone): ' + env.iosStandaloneFlag);
+    lines.push('Screen: ' + env.screen);
+    lines.push('window.innerWidth x innerHeight: ' + env.windowInner);
+    lines.push('visualViewport: ' + env.visualViewport);
+    lines.push('document.documentElement.clientHeight: ' + env.docElementClientHeight);
+    lines.push('body computed height: ' + env.bodyComputedHeight);
+    lines.push('Safe area insets: top=' + env.safeAreaInsets.top + ' right=' + env.safeAreaInsets.right +
+      ' bottom=' + env.safeAreaInsets.bottom + ' left=' + env.safeAreaInsets.left);
+    lines.push('');
+    lines.push('=== FOOTER GEOMETRY ===');
+    if (env.footerGap) {
+      lines.push('Footer rect: top=' + env.footerGap.footerTop + ' bottom=' + env.footerGap.footerBottom + ' height=' + env.footerGap.footerHeight);
+      lines.push('Gap below footer vs window.innerHeight: ' + env.footerGap.gapVsWindow + 'px (0 or negative = flush, positive = GAP)');
+      lines.push('Gap below footer vs visualViewport: ' + env.footerGap.gapVsVisualViewport + 'px');
+    } else {
+      lines.push('(footer element not found)');
+    }
+    lines.push('');
+    lines.push('=== APP STATE ===');
+    try {
+      var v = VERSES[state.index];
+      lines.push('Current verse: ' + (v ? (v.Sarga + ' · Sloka ' + v.SlokamNo) : 'n/a'));
+      lines.push('Active topic index: ' + state.topicIndex);
+      lines.push('Font scale: ' + state.fontScale);
+      lines.push('Browsing away (bookmark protected): ' + state.browsingAway);
+      lines.push('Primary bookmark: ' + localStorage.getItem(LS.primaryBookmark));
+      lines.push('Saved bookmarks count: ' + JSON.parse(localStorage.getItem(LS.saved) || '[]').length);
+      lines.push('Total verses loaded: ' + VERSES.length);
+    } catch (e) {
+      lines.push('(could not read app state: ' + e.message + ')');
+    }
+    lines.push('');
+    lines.push('=== ACTIVITY LOG (' + DIAG_LOG.length + ' entries, oldest first) ===');
+    DIAG_LOG.forEach(function (entry) {
+      var ts = new Date(entry.t).toISOString().split('T')[1].replace('Z', '');
+      lines.push('[' + ts + '] ' + entry.type + (entry.detail ? ': ' + entry.detail : ''));
+    });
+    return lines.join('\n');
+  }
+
+  async function exportDiagnostics() {
+    logEvent('diag_export_requested');
+    var text = buildDiagnosticText();
+    var filename = 'raghu-diagnostics-' + Date.now() + '.txt';
+    try {
+      var file = new File([text], filename, { type: 'text/plain' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Raghuvamsha Diagnostics' });
+        return;
+      }
+    } catch (e) {
+      // user cancelled the share sheet, or share failed — fall through to download
+    }
+    try {
+      var blob = new Blob([text], { type: 'text/plain' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      return;
+    } catch (e) {
+      // Blob/URL APIs unavailable for some reason — last-resort fallback below.
+    }
+    try {
+      var w = window.open('', '_blank');
+      if (w && w.document) {
+        w.document.title = filename;
+        w.document.body.style.whiteSpace = 'pre-wrap';
+        w.document.body.style.fontFamily = 'monospace';
+        w.document.body.textContent = text;
+        return;
+      }
+    } catch (e) { /* fall through */ }
+    showToast('నివేదికను రూపొందించడంలో సమస్య — దయచేసి మళ్ళీ ప్రయత్నించండి');
+  }
+
+  window.addEventListener('resize', function () { logEvent('resize', JSON.stringify(measureFooterGap())); });
+  window.addEventListener('orientationchange', function () { logEvent('orientationchange', JSON.stringify(measureFooterGap())); });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () { logEvent('vv_resize', JSON.stringify(measureFooterGap())); });
+  }
+
+  /* ---------------------------------------------------------
      1. DATA — normalize whatever came in (external raghu.json
         defines global `raghu` as [header, ...rows]; fallback is
         the same shape, embedded so the app always works offline).
@@ -70,7 +233,10 @@
     topicIndex: 2,                 // default = Akanksha
     fontScale: parseFloat(localStorage.getItem(LS.fontScale) || '1'),
     highlightQuery: null,          // set when arriving via a search result
-    browsingAway: false            // true after jumping via search/bookmarks/sarga-list; Prev/Next won't touch the primary bookmark while true
+    browsingAway: false,           // true after jumping via search/bookmarks/sarga-list; Prev/Next won't touch the primary bookmark while true
+    readAllMode: false,            // true while looping through the starred-bookmarks list via Prev/Next
+    readAllList: null,             // array of VERSES indices (sorted sarga/sloka order) for the current Read All session
+    readAllPos: 0                  // current position within readAllList
   };
 
   function clearHighlight() { state.highlightQuery = null; }
@@ -149,6 +315,11 @@
     slokaRef.innerHTML = '<b>' + escapeHtml(v.Sarga) + '</b> &middot; శ్లోకం <b>' + v.SlokamNo + '</b>';
     starBtn.classList.toggle('saved', isSaved(v));
     bookmarkBanner.hidden = !state.browsingAway;
+    if (state.browsingAway) {
+      document.getElementById('bookmarkBannerText').textContent = state.readAllMode
+        ? 'బుక్‌మార్క్ చేసిన శ్లోకాలు చదువుతున్నారు'
+        : 'ప్రధాన బుక్‌మార్క్ నుండి వేరుగా చూస్తున్నారు';
+    }
   }
 
   function renderContent() {
@@ -175,6 +346,11 @@
   }
 
   function renderNav() {
+    if (state.readAllMode) {
+      prevBtn.disabled = false;
+      nextBtn.disabled = false;
+      return;
+    }
     prevBtn.disabled = state.index <= 0;
     nextBtn.disabled = state.index >= VERSES.length - 1;
   }
@@ -198,6 +374,9 @@
     state.index = i;
     if (resetTopic !== false) state.topicIndex = 2; // default back to Akanksha on verse change
     renderAll();
+    var v = VERSES[i];
+    var gap = measureFooterGap();
+    logEvent('nav', v.Sarga + ' sloka=' + v.SlokamNo + ' footerGap=' + (gap ? gap.gapVsWindow : 'n/a'));
   }
 
   function escapeHtml(s) {
@@ -216,6 +395,12 @@
   --------------------------------------------------------- */
   function stepAndBookmark(delta) {
     clearHighlight();
+    if (state.readAllMode && state.readAllList && state.readAllList.length) {
+      var n = state.readAllList.length;
+      state.readAllPos = ((state.readAllPos + delta) % n + n) % n; // loop both directions
+      goTo(state.readAllList[state.readAllPos]);
+      return; // browsingAway stays true — primary bookmark is never touched here
+    }
     var newIndex = state.index + delta;
     if (newIndex < 0 || newIndex >= VERSES.length) return;
     goTo(newIndex);
@@ -226,6 +411,8 @@
 
   document.getElementById('backToBookmarkBtn').addEventListener('click', function () {
     state.browsingAway = false;
+    state.readAllMode = false;
+    state.readAllList = null;
     clearHighlight();
     var bm = getPrimaryBookmark();
     if (bm) {
@@ -365,6 +552,7 @@
     var q = normalizeTelugu(searchInput.value);
 
     state.browsingAway = true;       // Prev/Next won't touch the primary bookmark until "back to bookmark"
+    state.readAllMode = false;       // a search jump replaces any active Read All loop
     state.highlightQuery = q;        // shown at the destination until the next explicit navigation
     goTo(idx, false);                // never touches the primary bookmark
 
@@ -420,11 +608,34 @@
       return;
     }
     el.innerHTML = '<div class="bm-summary-row"><span class="bm-count">' + list.length + ' శ్లోకాలు గుర్తు పెట్టబడ్డాయి</span>' +
-      '<button id="bmViewAllBtn">అన్నీ చూడండి</button></div>';
+      '<div class="bm-summary-actions">' +
+      '<button id="bmReadAllBtn" class="secondary">Read All</button>' +
+      '<button id="bmViewAllBtn">అన్నీ చూడండి</button>' +
+      '</div></div>';
     document.getElementById('bmViewAllBtn').addEventListener('click', function () {
       closeMenu();
       openBookmarksModal();
     });
+    document.getElementById('bmReadAllBtn').addEventListener('click', startReadAllBookmarks);
+  }
+
+  // "Read All": Previous/Next loop through just the starred bookmarks (sarga/sloka
+  // order), without ever touching the primary bookmark — reuses the same
+  // browsingAway protection and "back to bookmark" banner as search does.
+  function startReadAllBookmarks() {
+    var sorted = sortedBookmarks();
+    var indices = sorted
+      .map(function (b) { return findIndex(b.sargaNo, b.slokamNo); })
+      .filter(function (i) { return i >= 0; });
+    if (!indices.length) { showToast('బుక్‌మార్క్ చేసిన శ్లోకాలు కనబడలేదు'); return; }
+    state.readAllList = indices;
+    state.readAllPos = 0;
+    state.readAllMode = true;
+    state.browsingAway = true;
+    clearHighlight();
+    logEvent('read_all_start', indices.length + ' bookmarks');
+    goTo(indices[0]);
+    closeMenu();
   }
 
   var bmModalOverlay = document.getElementById('bmModalOverlay');
@@ -470,7 +681,7 @@
       var slokamNo = parseInt(row.getAttribute('data-sloka'), 10);
       var i = findIndex(sargaNo, slokamNo);
       if (i >= 0) {
-        clearHighlight(); state.browsingAway = true; goTo(i);
+        clearHighlight(); state.browsingAway = true; state.readAllMode = false; goTo(i);
         closeBookmarksModal(); closeMenu();
       } else {
         showToast('ఈ శ్లోకం ప్రస్తుత డేటాలో కనబడలేదు');
@@ -521,6 +732,7 @@
         var idx = parseInt(item.getAttribute('data-i'), 10);
         clearHighlight();
         state.browsingAway = false;
+        state.readAllMode = false;
         goTo(idx);
         setPrimaryBookmark(VERSES[idx]); // selecting from the side menu is a deliberate jump — it becomes the new bookmark
         closeMenu();
@@ -639,6 +851,8 @@
      14. INIT
   --------------------------------------------------------- */
   function init() {
+    var dataSource = (typeof raghu !== 'undefined' && !window.__raghuExternalFailed) ? 'external raghu.json' : 'embedded fallback';
+    logEvent('init', 'dataSource=' + dataSource + ' verses=' + VERSES.length);
     if (!VERSES.length) {
       slokaText.innerHTML = '<div class="content-empty">No verses loaded.</div>';
       return;
@@ -657,7 +871,11 @@
     goTo(startIndex, false);
     applyFontSize();
     checkInitialTimestamp();
+    logEvent('init_complete', 'footerGap=' + JSON.stringify(measureFooterGap()));
   }
+
+  var shareDiagBtn = document.getElementById('shareDiagBtn');
+  if (shareDiagBtn) shareDiagBtn.addEventListener('click', exportDiagnostics);
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     setTimeout(init, 30);

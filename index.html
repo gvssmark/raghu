@@ -251,11 +251,15 @@
   .menu-bookmark-list, .menu-sarga-list{ display:flex; flex-direction:column; gap:2px; }
   .menu-empty{ font-size:13px; color:var(--ink-soft); font-style:italic; padding:6px 2px; }
 
-  .bm-summary-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .bm-summary-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
   .bm-summary-row .bm-count{ font-family:'Noto Sans Telugu',sans-serif; font-size:14px; color:var(--ink-soft); }
+  .bm-summary-actions{ display:flex; gap:8px; }
   .bm-summary-row button{
     background:var(--maroon); color:#fff; border:none; border-radius:16px; padding:6px 13px;
     font-size:12px; font-family:'Noto Sans Telugu',sans-serif; font-weight:600; cursor:pointer;
+  }
+  .bm-summary-row button.secondary{
+    background:none; color:var(--maroon); border:1px solid var(--maroon);
   }
 
   .bm-row{
@@ -318,7 +322,7 @@
 
   <!-- BACK-TO-BOOKMARK BANNER (only while viewing a search result) -->
   <div class="bookmark-banner" id="bookmarkBanner" hidden>
-    <span>ప్రధాన బుక్‌మార్క్ నుండి వేరుగా చూస్తున్నారు</span>
+    <span id="bookmarkBannerText">ప్రధాన బుక్‌మార్క్ నుండి వేరుగా చూస్తున్నారు</span>
     <button id="backToBookmarkBtn">ప్రధాన బుక్‌మార్క్‌కు ↩</button>
   </div>
 
@@ -400,6 +404,14 @@
       <section class="menu-section">
         <h4>సర్గలు</h4>
         <div class="menu-sarga-list" id="menuSargaList"></div>
+      </section>
+      <section class="menu-section">
+        <h4>సమస్య నివేదిక</h4>
+        <p class="menu-about-text" style="margin-bottom:10px;">యాప్‌లో ఏదైనా సమస్య కనిపిస్తే, కింద నొక్కి వివరాల ఫైల్‌ను పంపండి.</p>
+        <div class="about-update-row">
+          <span class="last-updated-label"></span>
+          <button id="shareDiagBtn">నివేదికను పంపండి</button>
+        </div>
       </section>
     </div>
   </aside>
