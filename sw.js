@@ -7,7 +7,7 @@
 // Bump CACHE_VERSION whenever app.js/index.html/CSS changes, so old
 // clients pick up the new files promptly instead of waiting on the
 // background revalidation alone.
-var CACHE_VERSION = 'raghu-v9'; // bumped: Read All bookmarks loop + diagnostics export
+var CACHE_VERSION = 'raghu-v10'; // bumped: cold-launch viewport nudge fix + Fix Layout button
 
 var APP_SHELL = [
   './index.html',

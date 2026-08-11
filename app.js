@@ -839,14 +839,61 @@
   }
 
   /* ---------------------------------------------------------
-     13. PWA — register service worker
+     13. iOS COLD-LAUNCH VIEWPORT NUDGE
+     Known WebKit bug: on a fresh standalone (home-screen) launch, the
+     safe-area/viewport geometry can be computed before it's fully settled
+     by the OS — producing a wrong result (e.g. footer sitting short of the
+     true bottom edge) that silently self-corrects the instant anything
+     forces WebKit to redo that calculation, which is exactly what an
+     orientation change does. This reproduces that same kind of forced
+     recalculation in code — removing and reinserting the viewport <meta>
+     tag — without requiring the user to actually rotate the device.
+  --------------------------------------------------------- */
+  function nudgeViewportGeometry(reason) {
+    var before = measureFooterGap();
+    var vp = document.querySelector('meta[name="viewport"]');
+    if (!vp || !vp.parentNode) { logEvent('nudge_skipped', 'no viewport meta found'); return; }
+    var parent = vp.parentNode, next = vp.nextSibling;
+    parent.removeChild(vp);
+    requestAnimationFrame(function () {
+      parent.insertBefore(vp, next);
+      requestAnimationFrame(function () {
+        var after = measureFooterGap();
+        logEvent('nudge_' + reason, 'before=' + (before ? before.gapVsWindow : 'n/a') + ' after=' + (after ? after.gapVsWindow : 'n/a'));
+      });
+    });
+  }
+
+  window.addEventListener('load', function () {
+    // Two staggered attempts: iOS settling time after a cold standalone
+    // launch has been observed to vary, so a single early nudge isn't
+    // always enough on its own.
+    setTimeout(function () { nudgeViewportGeometry('auto1'); }, 60);
+    setTimeout(function () { nudgeViewportGeometry('auto2'); }, 500);
+  });
+
+  // Manual fallback ("Fix Layout" in the menu's diagnostics section) — the
+  // same trigger, on demand, in case the automatic nudges above ever miss.
+  var fixLayoutBtn = document.getElementById('fixLayoutBtn');
+  if (fixLayoutBtn) {
+    fixLayoutBtn.addEventListener('click', function () {
+      nudgeViewportGeometry('manual');
+      setTimeout(function () {
+        var gap = measureFooterGap();
+        showToast(gap ? ('గ్యాప్: ' + gap.gapVsWindow + 'px') : 'కొలవలేకపోయాము');
+      }, 80);
+    });
+  }
+
+  /* ---------------------------------------------------------
+     14. PWA — register service worker
      updateViaCache:'none' + a version-tagged URL ensure the browser
      never serves a stale sw.js from its own HTTP cache when checking
      for updates — belt-and-suspenders on top of the Cache API logic
      inside sw.js itself. Bump SW_BUILD alongside CACHE_VERSION in
      sw.js on every deploy that changes sw.js/app.js/index.html.
   --------------------------------------------------------- */
-  var SW_BUILD = 'v9';
+  var SW_BUILD = 'v10';
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('./sw.js?build=' + SW_BUILD, { updateViaCache: 'none' })
