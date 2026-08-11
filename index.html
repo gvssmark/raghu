@@ -5,6 +5,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>రఘువంశము — Raghuvamsha Reader</title>
 
+<script>
+  /* iOS WebKit bug, confirmed via on-device diagnostics (2026-08-11): at a
+     cold launch of a standalone/home-screen PWA, window.innerHeight,
+     visualViewport.height, and CSS vh/dvh can all under-report the true
+     viewport height by exactly safe-area-inset-top — as if
+     viewport-fit=cover hadn't taken effect yet — and this persists
+     indefinitely until a genuine orientation change forces WebKit to
+     recompute it. Crucially, position:fixed's own bottom:0 anchor is tied
+     to this same buggy internal value, so it's not immune either — nothing
+     WebKit-native can be trusted here at cold launch.
+     screen.width/screen.height, however, were confirmed stable and correct
+     across both the broken and self-corrected (post-rotation) states — so
+     we use those, cross-referenced with current orientation, as the source
+     of truth for our own layout instead. Runs synchronously here in <head>,
+     before body exists, so the corrected value is ready before first paint. */
+  (function () {
+    function computeTrueHeight() {
+      var portrait = true;
+      try {
+        if (window.matchMedia) portrait = window.matchMedia('(orientation: portrait)').matches;
+        else portrait = window.innerWidth <= window.innerHeight;
+      } catch (e) { /* keep default: portrait */ }
+      var longSide = Math.max(screen.width, screen.height);
+      var shortSide = Math.min(screen.width, screen.height);
+      return portrait ? longSide : shortSide;
+    }
+    function apply() {
+      try {
+        document.documentElement.style.setProperty('--true-vh', computeTrueHeight() + 'px');
+      } catch (e) { /* CSS custom properties unsupported or screen API unavailable — dvh fallback in CSS still applies */ }
+    }
+    apply();
+    window.addEventListener('resize', apply);
+    window.addEventListener('orientationchange', function () { setTimeout(apply, 50); });
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', apply);
+    window.__applyTrueHeight = apply; // exposed for the manual "Fix Layout" button in app.js
+  })();
+</script>
+
 <!-- PWA -->
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#FBF6EC">
@@ -33,18 +72,14 @@
 
   *{box-sizing:border-box;}
   html{
-    /* Deliberately the SAME height mechanism as body below (dvh, not %).
-       Diagnostics from a real device showed document.documentElement's
-       clientHeight resolving 47px shorter than window.innerHeight — exactly
-       equal to safe-area-inset-top — while body{height:100dvh} correctly
-       matched the full screen. That mismatch meant body (and everything in
-       it, footer included) was silently overflowing its own html parent by
-       47px, with html{overflow:hidden} clipping that overflow at the
-       bottom — a real gap, even though the footer's own position:fixed
-       geometry was already correct. Using the identical unit on both
-       eliminates the two ever disagreeing. */
+    /* --true-vh comes from the inline <head> script above (screen.width/
+       height + orientation) — proven correct at cold launch when
+       window.innerHeight/dvh were not. The dvh fallback only matters for
+       the near-instant window before that script's first apply() call,
+       and for browsers where matchMedia/screen sizing isn't available. */
     height:100vh;
     height:100dvh;
+    height:var(--true-vh, 100dvh);
     overflow:hidden;
     background:var(--cream);
   }
@@ -166,7 +201,7 @@
   /* ---------- Content panel (swipeable) ---------- */
   .content-panel{
     flex:1 1 auto; overflow-y:auto; overscroll-behavior:none; -webkit-overflow-scrolling:touch;
-    padding:20px 18px calc(64px + env(safe-area-inset-bottom));
+    padding:20px 18px 28px;
     background:var(--cream-panel);
   }
   .content-inner{
@@ -180,16 +215,17 @@
   .content-line.line-b{ color:var(--indigo); }
 
   /* ---------- Footer nav ---------- */
-  /* Pinned directly to the true device bottom edge via position:fixed, taken
-     completely out of the body flex flow — this is the pattern verified
-     working in the sibling Pothana project. It means the footer's position
-     no longer depends on body's height calculation being exactly correct
-     (which is what every previous attempt here was chasing); position:fixed
-     + bottom:0 is resolved reliably by iOS regardless of any dvh/viewport
-     ambiguity elsewhere. .content-panel below reserves matching space via
-     padding-bottom so its content never sits hidden underneath the footer. */
+  /* Back to a normal flex child (flex:0 0 auto, last in the body flex
+     column) — position:fixed;bottom:0 was tried here previously, but
+     on-device diagnostics showed bottom:0 is anchored to the SAME buggy
+     internal WebKit viewport value as dvh/window.innerHeight at cold
+     launch, so it wasn't actually immune to the bug either. Now that
+     html/body's height is sourced from --true-vh (screen dimensions,
+     proven correct even when WebKit's own viewport primitives weren't),
+     a plain flex child reliably lands at the true bottom without needing
+     any WebKit-native "fixed to viewport" mechanism at all. */
   .app-footer{
-    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    flex:0 0 auto;
     display:flex; border-top:1px solid var(--line); background:#fff;
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);

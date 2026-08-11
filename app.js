@@ -1,6 +1,12 @@
 (function () {
   'use strict';
 
+  // Single source of truth for "what code is actually running" — shown at the
+  // top of every diagnostic report, and used to cache-bust the service worker
+  // registration. Bump this alongside CACHE_VERSION in sw.js on every deploy
+  // that changes app.js/index.html/sw.js.
+  var APP_VERSION = 'v12';
+
   /* ---------------------------------------------------------
      0. DIAGNOSTICS — an in-memory activity log + environment
         snapshot, exportable as a shareable text file. Built
@@ -67,6 +73,7 @@
       visualViewport: vv ? (round1(vv.width) + 'x' + round1(vv.height) + ' offsetTop=' + round1(vv.offsetTop)) : 'unsupported',
       docElementClientHeight: document.documentElement.clientHeight,
       bodyComputedHeight: getComputedStyle(document.body).height,
+      trueVh: getComputedStyle(document.documentElement).getPropertyValue('--true-vh').trim(),
       safeAreaInsets: insets,
       footerGap: gap
     };
@@ -76,6 +83,7 @@
     var env = envSnapshot();
     var lines = [];
     lines.push('Raghuvamsha Reader — Diagnostic Report');
+    lines.push('App version: ' + APP_VERSION);
     lines.push('Generated: ' + new Date().toISOString());
     lines.push('');
     lines.push('=== ENVIRONMENT ===');
@@ -90,6 +98,7 @@
         ' — MISMATCH of ' + (window.innerHeight - env.docElementClientHeight) + 'px! html and body may be sized against different references — this can silently clip body\'s bottom edge, footer included, even when the footer\'s own position is correct.' :
         ' — match, OK') + ')');
     lines.push('body computed height: ' + env.bodyComputedHeight);
+    lines.push('--true-vh (JS-computed, screen-based): ' + (env.trueVh || '(not set)'));
     lines.push('Safe area insets: top=' + env.safeAreaInsets.top + ' right=' + env.safeAreaInsets.right +
       ' bottom=' + env.safeAreaInsets.bottom + ' left=' + env.safeAreaInsets.left);
     lines.push('');
@@ -854,12 +863,14 @@
   --------------------------------------------------------- */
   function nudgeViewportGeometry(reason) {
     var before = measureFooterGap();
+    if (window.__applyTrueHeight) window.__applyTrueHeight();
     var vp = document.querySelector('meta[name="viewport"]');
     if (!vp || !vp.parentNode) { logEvent('nudge_skipped', 'no viewport meta found'); return; }
     var parent = vp.parentNode, next = vp.nextSibling;
     parent.removeChild(vp);
     requestAnimationFrame(function () {
       parent.insertBefore(vp, next);
+      if (window.__applyTrueHeight) window.__applyTrueHeight();
       requestAnimationFrame(function () {
         var after = measureFooterGap();
         logEvent('nudge_' + reason, 'before=' + (before ? before.gapVsWindow : 'n/a') + ' after=' + (after ? after.gapVsWindow : 'n/a'));
@@ -893,13 +904,13 @@
      updateViaCache:'none' + a version-tagged URL ensure the browser
      never serves a stale sw.js from its own HTTP cache when checking
      for updates — belt-and-suspenders on top of the Cache API logic
-     inside sw.js itself. Bump SW_BUILD alongside CACHE_VERSION in
-     sw.js on every deploy that changes sw.js/app.js/index.html.
+     inside sw.js itself. APP_VERSION (top of file) is bumped alongside
+     CACHE_VERSION in sw.js on every deploy that changes
+     sw.js/app.js/index.html.
   --------------------------------------------------------- */
-  var SW_BUILD = 'v10';
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('./sw.js?build=' + SW_BUILD, { updateViaCache: 'none' })
+      navigator.serviceWorker.register('./sw.js?build=' + APP_VERSION, { updateViaCache: 'none' })
         .catch(function () { /* offline support unavailable; app still works online */ });
     });
   }
