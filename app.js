@@ -85,7 +85,10 @@
     lines.push('Screen: ' + env.screen);
     lines.push('window.innerWidth x innerHeight: ' + env.windowInner);
     lines.push('visualViewport: ' + env.visualViewport);
-    lines.push('document.documentElement.clientHeight: ' + env.docElementClientHeight);
+    lines.push('document.documentElement.clientHeight: ' + env.docElementClientHeight +
+      ' (vs window.innerHeight ' + window.innerHeight + (env.docElementClientHeight !== window.innerHeight ?
+        ' — MISMATCH of ' + (window.innerHeight - env.docElementClientHeight) + 'px! html and body may be sized against different references — this can silently clip body\'s bottom edge, footer included, even when the footer\'s own position is correct.' :
+        ' — match, OK') + ')');
     lines.push('body computed height: ' + env.bodyComputedHeight);
     lines.push('Safe area insets: top=' + env.safeAreaInsets.top + ' right=' + env.safeAreaInsets.right +
       ' bottom=' + env.safeAreaInsets.bottom + ' left=' + env.safeAreaInsets.left);

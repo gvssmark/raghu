@@ -33,7 +33,19 @@
 
   *{box-sizing:border-box;}
   html{
-    height:100%;
+    /* Deliberately the SAME height mechanism as body below (dvh, not %).
+       Diagnostics from a real device showed document.documentElement's
+       clientHeight resolving 47px shorter than window.innerHeight — exactly
+       equal to safe-area-inset-top — while body{height:100dvh} correctly
+       matched the full screen. That mismatch meant body (and everything in
+       it, footer included) was silently overflowing its own html parent by
+       47px, with html{overflow:hidden} clipping that overflow at the
+       bottom — a real gap, even though the footer's own position:fixed
+       geometry was already correct. Using the identical unit on both
+       eliminates the two ever disagreeing. */
+    height:100vh;
+    height:100dvh;
+    overflow:hidden;
     background:var(--cream);
   }
   body{
@@ -42,20 +54,7 @@
     color:var(--ink);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-tap-highlight-color: transparent;
-    /* Size exactly to the real visible viewport (dvh tracks this reliably on iOS,
-       including the home-indicator safe area — position:fixed;inset:0 does not
-       always agree with it in standalone/home-screen mode, which is what was
-       leaving a gap below the footer). overflow:hidden means body itself has
-       nothing to scroll/bounce; all real scrolling happens inside the panels
-       below, each with its own overscroll-behavior + momentum scroll. */
-    /* Roughly fills the viewport (dvh with a vh fallback) — no longer needs to
-       be pixel-exact, since the footer is now independently pinned to the true
-       bottom edge via position:fixed (see .app-footer) rather than relying on
-       this height matching the real viewport precisely. overflow:hidden means
-       body itself has nothing to scroll/bounce; all real scrolling happens
-       inside the panels below, each with its own overscroll-behavior. */
-    height:100vh;   /* fallback for older engines */
-    height:100dvh;
+    height:100%;
     overflow:hidden;
     overscroll-behavior:none;
     display:flex; flex-direction:column;
