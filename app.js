@@ -5,7 +5,7 @@
   // top of every diagnostic report, and used to cache-bust the service worker
   // registration. Bump this alongside CACHE_VERSION in sw.js on every deploy
   // that changes app.js/index.html/sw.js.
-  var APP_VERSION = 'v13';
+  var APP_VERSION = 'v14';
 
   /* ---------------------------------------------------------
      0. DIAGNOSTICS — an in-memory activity log + environment

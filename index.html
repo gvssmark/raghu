@@ -56,7 +56,7 @@
 
 <!-- PWA -->
 <link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#FBF6EC">
+<meta name="theme-color" content="#1a0f14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="రఘువంశము">
@@ -68,16 +68,27 @@
 <link href="https://fonts.googleapis.com/css2?family=Mandali&family=Noto+Serif+Telugu:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --cream:#FBF6EC;
-    --cream-panel:#F4EDE0;
-    --maroon:#8C1F28;
-    --indigo:#1E3A5F;
-    --gold:#B8862E;
-    --ink:#2B2620;
-    --ink-soft:#5A5347;
-    --line:#E4D9C3;
+    /* "Temple dusk" palette — same glass technique as the reference (blur,
+       translucent fill, gradient rim-light border) but warm maroon/gold/
+       indigo tones instead of neon, to fit a classical Telugu/Sanskrit text
+       rather than a tech demo. */
+    --bg-deep:#1a0f14;
+    --maroon:#C4525E;
+    --maroon-deep:#8C1F28;
+    --indigo:#8FB4E8;
+    --gold:#E8B563;
+    --cream:#F7EFE2;
+    --ink:#F7EFE2;
+    --ink-soft:rgba(247,239,226,0.68);
+    --line:rgba(247,239,226,0.16);
     --sloka-font-size:26px;
-    --shadow: 0 2px 10px rgba(43,38,32,0.08);
+    --shadow: 0 12px 28px rgba(0,0,0,0.35);
+
+    --blur:18px;
+    --glass-fill:rgba(255,255,255,0.10);
+    --glass-fill-hover:rgba(255,255,255,0.16);
+    --glass-border:rgba(255,255,255,0.45);
+    --glass-shadow:rgba(0,0,0,0.30);
   }
 
   *{box-sizing:border-box;}
@@ -91,11 +102,16 @@
     height:100dvh;
     height:var(--true-vh, 100dvh);
     overflow:hidden;
-    background:var(--cream);
+    background:var(--bg-deep);
   }
   body{
     margin:0; padding:0;
-    background:var(--cream);
+    position:relative;
+    background:
+      radial-gradient(1000px 600px at 12% 8%, rgba(196,82,94,0.35) 0%, transparent 55%),
+      radial-gradient(900px 700px at 88% 12%, rgba(143,180,232,0.22) 0%, transparent 55%),
+      radial-gradient(1000px 800px at 50% 105%, rgba(232,181,99,0.20) 0%, transparent 55%),
+      linear-gradient(160deg, #241016 0%, #2e1420 45%, #14101f 100%);
     color:var(--ink);
     font-family:'Inter',system-ui,sans-serif;
     -webkit-tap-highlight-color: transparent;
@@ -103,6 +119,45 @@
     overflow:hidden;
     overscroll-behavior:none;
     display:flex; flex-direction:column;
+  }
+  /* Slow-drifting soft light blobs, same technique as the reference —
+     purely decorative, sit behind everything (z-index 0), ignore taps. */
+  body::before, body::after{
+    content:""; position:fixed; border-radius:50%; filter:blur(2px);
+    opacity:.35; pointer-events:none; z-index:0;
+    animation: raghu-float 18s ease-in-out infinite;
+  }
+  body::before{
+    width:260px; height:260px; top:16%; left:6%;
+    background:radial-gradient(circle at 30% 30%, var(--gold), transparent 70%);
+  }
+  body::after{
+    width:300px; height:300px; bottom:16%; right:8%;
+    background:radial-gradient(circle at 30% 30%, var(--maroon), transparent 70%);
+    animation-delay:-9s;
+  }
+  @keyframes raghu-float{
+    0%,100%{ transform:translate(0,0); }
+    50%{ transform:translate(18px,-26px); }
+  }
+
+  /* ---------- Glass panel base, shared by header/footer/sloka/menu/modals ---------- */
+  .glass{
+    background:var(--glass-fill);
+    -webkit-backdrop-filter:blur(var(--blur)) saturate(150%);
+    backdrop-filter:blur(var(--blur)) saturate(150%);
+    box-shadow:
+      0 1px 1px rgba(255,255,255,0.35) inset,
+      0 -6px 10px rgba(255,255,255,0.08) inset,
+      0 12px 28px var(--glass-shadow);
+    position:relative; isolation:isolate;
+  }
+  .glass::before{
+    content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
+    background:linear-gradient(135deg, var(--glass-border), rgba(255,255,255,0.04) 40%, rgba(255,255,255,0.28) 100%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor; mask-composite:exclude;
+    pointer-events:none; z-index:1;
   }
 
   /* ---------- Header ---------- */
@@ -113,45 +168,48 @@
     padding-top: calc(10px + env(safe-area-inset-top));
     padding-left: calc(14px + env(safe-area-inset-left));
     padding-right: calc(14px + env(safe-area-inset-right));
-    border-bottom:1px solid var(--line);
-    background:linear-gradient(180deg,#FDF9F0,var(--cream));
+    border-radius:0 0 22px 22px;
+    z-index:20;
   }
   .app-title{
     font-family:'Noto Serif Telugu',serif;
-    font-size:18px; font-weight:700; color:var(--maroon);
+    font-size:18px; font-weight:700; color:var(--gold);
     display:flex; align-items:center; gap:8px;
   }
   .app-title .divider-dot{ width:5px;height:5px;border-radius:50%;background:var(--gold); }
   .header-controls{display:flex; align-items:center; gap:6px;}
   .icon-btn{
-    background:none; border:1px solid var(--line); border-radius:8px;
+    background:var(--glass-fill); border:1px solid var(--line); border-radius:10px;
     width:34px; height:34px; display:flex; align-items:center; justify-content:center;
     cursor:pointer; color:var(--ink-soft); transition:.15s;
+    -webkit-backdrop-filter:blur(var(--blur)); backdrop-filter:blur(var(--blur));
   }
-  .icon-btn:hover, .icon-btn:active{ background:var(--cream-panel); color:var(--maroon); border-color:var(--gold);}
+  .icon-btn:hover, .icon-btn:active{ background:var(--glass-fill-hover); color:var(--gold); border-color:var(--gold);}
   .icon-btn svg{width:17px;height:17px;}
 
   /* ---------- Back-to-bookmark banner (shown only while viewing a search result) ---------- */
   .bookmark-banner{
     flex:0 0 auto; display:flex; align-items:center; justify-content:space-between; gap:10px;
-    padding:8px 14px; background:#FBEFD2; border-bottom:1px solid var(--gold);
+    padding:8px 14px;
+    background:rgba(232,181,99,0.16); border-bottom:1px solid var(--gold);
+    -webkit-backdrop-filter:blur(var(--blur)); backdrop-filter:blur(var(--blur));
     font-family:'Noto Sans Telugu',sans-serif; font-size:13px; color:var(--ink);
   }
   .bookmark-banner[hidden]{ display:none; }
   .bookmark-banner button{
-    background:var(--maroon); color:#fff; border:none; border-radius:16px;
+    background:var(--maroon-deep); color:#fff; border:none; border-radius:16px;
     padding:6px 12px; font-size:12px; font-family:'Noto Sans Telugu',sans-serif;
     font-weight:600; cursor:pointer; white-space:nowrap;
   }
 
   /* ---------- Search overlay ---------- */
   .search-overlay{
-    position:fixed; inset:0; background:rgba(43,38,32,0.35); z-index:60;
+    position:fixed; inset:0; background:rgba(10,6,10,0.45); z-index:60;
     display:none; align-items:flex-start; justify-content:center; padding-top:14vh;
   }
   .search-overlay.open{display:flex;}
   .search-box{
-    background:#fff; width:min(92vw,480px); border-radius:14px; box-shadow:var(--shadow);
+    width:min(92vw,480px); border-radius:18px;
     max-height:70vh; display:flex; flex-direction:column; overflow:hidden;
   }
   .search-input-row{ display:flex; align-items:center; gap:8px; padding:12px; border-bottom:1px solid var(--line);}
@@ -159,23 +217,24 @@
     flex:1; border:none; outline:none; font-size:17px; font-family:'Noto Sans Telugu','Inter',sans-serif;
     background:transparent; color:var(--ink);
   }
+  .search-input-row input::placeholder{ color:var(--ink-soft); }
   .search-results{ overflow-y:auto; overscroll-behavior:none; -webkit-overflow-scrolling:touch; }
   .search-result{ padding:12px 14px; border-bottom:1px solid var(--line); cursor:pointer; }
-  .search-result:hover{background:var(--cream-panel);}
+  .search-result:hover{background:var(--glass-fill-hover);}
   .search-result .meta{font-size:11px; color:var(--gold); font-weight:600; letter-spacing:.03em; text-transform:uppercase; margin-bottom:3px;}
   .search-result .snippet{font-family:'Noto Sans Telugu',sans-serif; font-size:15px; color:var(--ink); line-height:1.5;}
   .search-empty{padding:24px; text-align:center; color:var(--ink-soft); font-size:14px;}
-  mark.hl, .search-result mark{ background:#F3D9A6; color:var(--maroon); border-radius:2px; padding:0 1px; font-weight:600; }
+  mark.hl, .search-result mark{ background:rgba(232,181,99,0.45); color:var(--gold); border-radius:2px; padding:0 1px; font-weight:600; }
 
   /* ---------- Sloka fixed panel ---------- */
   .sloka-wrap{
     flex:0 0 auto; padding:18px 20px 16px;
-    background: radial-gradient(ellipse at top left, rgba(184,134,46,0.06), transparent 60%), var(--cream);
-    border-bottom:2px solid var(--gold); position:relative;
+    border-radius:0 0 22px 22px;
+    position:relative; z-index:15;
   }
   .sloka-meta{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .sloka-meta .ref{ font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-soft); font-weight:600; }
-  .sloka-meta .ref b{ color:var(--maroon); font-weight:700; }
+  .sloka-meta .ref b{ color:var(--gold); font-weight:700; }
   .star-btn{ background:none; border:none; cursor:pointer; padding:2px; display:flex; align-items:center; }
   .star-btn svg{width:20px;height:20px; transition:.15s;}
   .star-btn.saved svg{ fill:var(--gold); stroke:var(--gold); }
@@ -183,36 +242,40 @@
 
   .sloka-text{ font-family:'Noto Serif Telugu',serif; font-size:var(--sloka-font-size); line-height:1.9; text-align:center; }
   .sloka-line{ padding:1px 0; }
-  .sloka-line.line-a{ color:var(--maroon); }
+  .sloka-line.line-a{ color:var(--gold); }
   .sloka-line.line-b{ color:var(--indigo); }
 
   /* ---------- Topic icon row (Mandali-letter badges) ---------- */
-  .topic-row{ flex:0 0 auto; display:flex; padding:7px 4px 0; background:var(--cream); border-bottom:1px solid var(--line); }
+  .topic-row{ flex:0 0 auto; display:flex; padding:7px 4px 0; border-bottom:1px solid var(--line); position:relative; z-index:15; }
   .topic-btn{
     flex:1 1 0; min-width:0;
     display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px;
     padding:2px 2px 8px; background:none; border:none; cursor:pointer;
-    opacity:.6; border-bottom:3px solid transparent; transition:opacity .15s, border-color .15s;
+    opacity:.65; border-bottom:3px solid transparent; transition:opacity .15s, border-color .15s;
   }
   .topic-glyph{
     width:32px; height:32px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
     font-family:'Mandali', sans-serif; font-size:15px; line-height:1;
-    color:var(--topic-color, var(--ink-soft));
-    background:color-mix(in srgb, var(--topic-color, var(--ink-soft)) 14%, transparent);
+    /* Topic accent colors (set inline via --topic-color) were designed as dark
+       text on a light background — lightened here via color-mix so they stay
+       legible as text against this dark glass panel, without needing to
+       change the actual color values shared with the active-state fill. */
+    color:color-mix(in srgb, var(--topic-color, var(--ink-soft)) 65%, white);
+    background:color-mix(in srgb, var(--topic-color, var(--ink-soft)) 26%, transparent);
     transition:.15s;
   }
   .topic-btn .label-te{ font-size:12px; font-weight:600; font-family:'Noto Sans Telugu',sans-serif; line-height:1.1; white-space:nowrap; color:var(--ink-soft); }
   .topic-btn.active{ opacity:1; border-bottom-color:var(--topic-color); }
   .topic-btn.active .topic-glyph{ background:var(--topic-color); color:#fff; }
-  .topic-btn.active .label-te{ color:var(--topic-color); }
+  .topic-btn.active .label-te{ color:color-mix(in srgb, var(--topic-color) 65%, white); }
   .topic-btn:active{ opacity:.85; }
 
   /* ---------- Content panel (swipeable) ---------- */
   .content-panel{
     flex:1 1 auto; overflow-y:auto; overscroll-behavior:none; -webkit-overflow-scrolling:touch;
     padding:20px 18px 28px;
-    background:var(--cream-panel);
+    position:relative; z-index:5;
   }
   .content-inner{
     font-family:'Noto Sans Telugu',sans-serif; font-size:var(--content-font-size, 17px); line-height:1.85; color:var(--ink);
@@ -221,49 +284,55 @@
   @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
   .content-empty{ color:var(--ink-soft); font-style:italic; text-align:center; margin-top:30px; }
   .content-line{ padding:3px 0; }
-  .content-line.line-a{ color:var(--maroon); }
+  .content-line.line-a{ color:var(--gold); }
   .content-line.line-b{ color:var(--indigo); }
 
   /* ---------- Footer nav ---------- */
-  /* Back to a normal flex child (flex:0 0 auto, last in the body flex
-     column) — position:fixed;bottom:0 was tried here previously, but
-     on-device diagnostics showed bottom:0 is anchored to the SAME buggy
-     internal WebKit viewport value as dvh/window.innerHeight at cold
-     launch, so it wasn't actually immune to the bug either. Now that
-     html/body's height is sourced from --true-vh (screen dimensions,
-     proven correct even when WebKit's own viewport primitives weren't),
-     a plain flex child reliably lands at the true bottom without needing
-     any WebKit-native "fixed to viewport" mechanism at all. */
+  /* Still a normal flex child (flex:0 0 auto, last in the body flex
+     column) — position:fixed;bottom:0 was tried previously, but on-device
+     diagnostics showed bottom:0 is anchored to the same buggy internal
+     WebKit viewport value as dvh/window.innerHeight at cold launch on iOS,
+     so it wasn't actually immune to the bug either. html/body's height is
+     sourced from --true-vh there (screen dimensions, proven correct even
+     when WebKit's own viewport primitives weren't), so a plain flex child
+     reliably lands at the true bottom without needing any WebKit-native
+     "fixed to viewport" mechanism at all. */
   .app-footer{
     flex:0 0 auto;
-    display:flex; border-top:1px solid var(--line); background:#fff;
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    display:flex; gap:10px;
+    padding:10px 14px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    padding-left: calc(14px + env(safe-area-inset-left));
+    padding-right: calc(14px + env(safe-area-inset-right));
+    border-radius:22px 22px 0 0;
+    z-index:20;
   }
   .foot-btn{
     flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
     padding:9px 4px 8px; background:none; border:none; cursor:pointer; color:var(--ink-soft);
     -webkit-user-select:none; user-select:none;
+    border-radius:16px; transition:background .15s, transform .15s;
   }
+  .foot-btn:not(:disabled):hover{ background:var(--glass-fill-hover); }
+  .foot-btn:not(:disabled):active{ color:var(--gold); transform:scale(.94); }
   .foot-btn svg{width:21px;height:21px;}
   .foot-btn .flabel{font-size:11px; font-weight:600;}
   .foot-btn:disabled{opacity:.3; cursor:default;}
-  .foot-btn:not(:disabled):active{color:var(--maroon);}
 
   /* ---------- Hamburger side menu ---------- */
   .menu-backdrop{
-    position:fixed; inset:0; background:rgba(43,38,32,0.4); z-index:70;
+    position:fixed; inset:0; background:rgba(10,6,10,0.45); z-index:70;
     opacity:0; pointer-events:none; transition:opacity .2s;
   }
   .menu-backdrop.open{ opacity:1; pointer-events:auto; }
   .menu-drawer{
     position:fixed; top:0; left:0; bottom:0; width:min(86vw, 340px);
-    background:var(--cream); z-index:71; box-shadow:var(--shadow);
+    z-index:71;
     transform:translateX(-100%); transition:transform .22s ease;
     display:flex; flex-direction:column;
     padding-left: env(safe-area-inset-left);
     padding-bottom: env(safe-area-inset-bottom);
+    border-radius:0 22px 22px 0;
   }
   .menu-drawer.open{ transform:translateX(0); }
   .menu-head{
@@ -271,7 +340,7 @@
     padding:14px 16px; border-bottom:1px solid var(--line);
     padding-top: calc(14px + env(safe-area-inset-top));
   }
-  .menu-title{ font-family:'Noto Serif Telugu',serif; font-weight:700; color:var(--maroon); font-size:17px; }
+  .menu-title{ font-family:'Noto Serif Telugu',serif; font-weight:700; color:var(--gold); font-size:17px; }
   .menu-body{ flex:1 1 auto; overflow-y:auto; overscroll-behavior:none; -webkit-overflow-scrolling:touch; padding:6px 0 20px; }
   .menu-section{ padding:14px 16px; border-bottom:1px solid var(--line); }
   .menu-section h4{
@@ -284,13 +353,13 @@
   .about-update-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; }
   .last-updated-label{ font-size:11.5px; color:var(--ink-soft); font-family:'Noto Sans Telugu',sans-serif; }
   .about-update-row button{
-    background:none; border:1px solid var(--line); border-radius:14px; padding:5px 11px;
-    font-size:11.5px; font-family:'Noto Sans Telugu',sans-serif; font-weight:600; color:var(--maroon); cursor:pointer;
+    background:var(--glass-fill); border:1px solid var(--line); border-radius:14px; padding:5px 11px;
+    font-size:11.5px; font-family:'Noto Sans Telugu',sans-serif; font-weight:600; color:var(--gold); cursor:pointer;
   }
   .menu-font-controls{ display:flex; gap:8px; }
   .menu-font-controls button{
-    width:38px; height:38px; border-radius:8px; border:1px solid var(--line); background:#fff;
-    font-size:15px; font-weight:600; color:var(--maroon); cursor:pointer;
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line); background:var(--glass-fill);
+    font-size:15px; font-weight:600; color:var(--gold); cursor:pointer;
   }
 
   .menu-bookmark-list, .menu-sarga-list{ display:flex; flex-direction:column; gap:2px; }
@@ -300,21 +369,21 @@
   .bm-summary-row .bm-count{ font-family:'Noto Sans Telugu',sans-serif; font-size:14px; color:var(--ink-soft); }
   .bm-summary-actions{ display:flex; gap:8px; }
   .bm-summary-row button{
-    background:var(--maroon); color:#fff; border:none; border-radius:16px; padding:6px 13px;
+    background:var(--maroon-deep); color:#fff; border:none; border-radius:16px; padding:6px 13px;
     font-size:12px; font-family:'Noto Sans Telugu',sans-serif; font-weight:600; cursor:pointer;
   }
   .bm-summary-row button.secondary{
-    background:none; color:var(--maroon); border:1px solid var(--maroon);
+    background:none; color:var(--gold); border:1px solid var(--gold);
   }
 
   .bm-row{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
     padding:11px 14px; border-bottom:1px solid var(--line); cursor:pointer;
   }
-  .bm-row:hover{ background:var(--cream-panel); }
+  .bm-row:hover{ background:var(--glass-fill-hover); }
   .bm-row .bm-ref{ font-size:13px; font-weight:600; color:var(--ink); font-family:'Noto Sans Telugu',sans-serif; }
   .bm-row .bm-snip{ font-size:12.5px; color:var(--ink-soft); font-family:'Noto Sans Telugu',sans-serif; margin-top:2px; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .bm-row .bm-remove{ background:none; border:none; color:#B85C5C; cursor:pointer; font-size:16px; padding:6px 8px; flex:0 0 auto; }
+  .bm-row .bm-remove{ background:none; border:none; color:#E28080; cursor:pointer; font-size:16px; padding:6px 8px; flex:0 0 auto; }
 
   .sarga-group{ border-radius:8px; overflow:hidden; }
   .sarga-header{
@@ -322,7 +391,7 @@
     padding:10px 8px; background:none; border:none; cursor:pointer; text-align:left;
     font-family:'Noto Sans Telugu',sans-serif; font-size:14px; font-weight:600; color:var(--ink);
   }
-  .sarga-header:hover{ background:var(--cream-panel); }
+  .sarga-header:hover{ background:var(--glass-fill-hover); }
   .sarga-header .count{ font-size:11px; color:var(--ink-soft); font-family:'Inter',sans-serif; font-weight:500; margin-left:4px; }
   .sarga-header .chev{ color:var(--gold); transition:transform .15s; flex:0 0 auto; }
   .sarga-header.expanded .chev{ transform:rotate(90deg); }
@@ -333,13 +402,15 @@
     font-family:'Noto Sans Telugu',sans-serif; font-size:13.5px; color:var(--ink-soft);
     border-radius:6px; display:flex; gap:6px;
   }
-  .sloka-item:hover{ background:var(--cream-panel); color:var(--ink); }
+  .sloka-item:hover{ background:var(--glass-fill-hover); color:var(--ink); }
   .sloka-item .snum{ color:var(--gold); font-weight:700; flex:0 0 auto; }
-  .sloka-item.current{ background:color-mix(in srgb, var(--maroon) 10%, transparent); color:var(--maroon); font-weight:600; }
+  .sloka-item.current{ background:color-mix(in srgb, var(--gold) 16%, transparent); color:var(--gold); font-weight:600; }
 
   .toast{
     position:fixed; bottom:70px; left:50%; transform:translateX(-50%) translateY(10px);
-    background:var(--ink); color:#fff; padding:8px 16px; border-radius:20px; font-size:13px;
+    background:rgba(20,12,18,0.85); color:#fff; padding:8px 16px; border-radius:20px; font-size:13px;
+    -webkit-backdrop-filter:blur(var(--blur)); backdrop-filter:blur(var(--blur));
+    border:1px solid var(--line);
     opacity:0; pointer-events:none; transition:.2s; z-index:80;
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
@@ -350,7 +421,7 @@
 <body>
 
   <!-- HEADER -->
-  <header class="app-header">
+  <header class="app-header glass">
     <div class="app-title"><span>రఘువంశము</span><span class="divider-dot"></span><span style="font-size:13px;color:var(--ink-soft);font-family:Inter;font-weight:500;">Raghuvamsha</span></div>
     <div class="header-controls">
       <button class="icon-btn" id="searchOpenBtn" title="Search" aria-label="Search">
@@ -372,7 +443,7 @@
   </div>
 
   <!-- SLOKA -->
-  <section class="sloka-wrap" id="slokaWrap">
+  <section class="sloka-wrap glass" id="slokaWrap">
     <div class="sloka-meta">
       <span class="ref" id="slokaRef">Sarga <b>—</b> · Verse <b>—</b></span>
       <button class="star-btn" id="starBtn" title="Save bookmark" aria-label="Save bookmark">
@@ -391,7 +462,7 @@
   </main>
 
   <!-- FOOTER -->
-  <footer class="app-footer">
+  <footer class="app-footer glass">
     <button class="foot-btn" id="prevBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       <span class="flabel">Previous</span>
@@ -408,9 +479,9 @@
 
   <!-- SEARCH OVERLAY -->
   <div class="search-overlay" id="searchOverlay">
-    <div class="search-box">
+    <div class="search-box glass">
       <div class="search-input-row">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8a8071" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="color:var(--ink-soft)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="searchInput" placeholder="శ్లోకంలో వెతకండి... (search)" autocomplete="off">
         <button class="icon-btn" id="searchCloseBtn" style="border:none;">✕</button>
       </div>
@@ -420,7 +491,7 @@
 
   <!-- HAMBURGER SIDE MENU -->
   <div class="menu-backdrop" id="menuBackdrop"></div>
-  <aside class="menu-drawer" id="menuDrawer">
+  <aside class="menu-drawer glass" id="menuDrawer">
     <div class="menu-head">
       <div class="menu-title">రఘువంశము</div>
       <button class="icon-btn" id="menuCloseBtn" style="border:none;">✕</button>
@@ -468,7 +539,7 @@
 
   <!-- BOOKMARKS MODAL (sorted, scrollable list of all starred slokas) -->
   <div class="search-overlay" id="bmModalOverlay">
-    <div class="search-box">
+    <div class="search-box glass">
       <div class="search-input-row">
         <span style="font-family:'Noto Sans Telugu',sans-serif; font-weight:700; color:var(--maroon); flex:1;">గుర్తు పెట్టిన శ్లోకాలు</span>
         <button class="icon-btn" id="bmModalCloseBtn" style="border:none;">✕</button>

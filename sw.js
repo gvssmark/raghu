@@ -7,7 +7,7 @@
 // Bump CACHE_VERSION whenever app.js/index.html/CSS changes, so old
 // clients pick up the new files promptly instead of waiting on the
 // background revalidation alone.
-var CACHE_VERSION = 'raghu-v13'; // bumped: gated the --true-vh screen-based override to iOS standalone ONLY (navigator.standalone===true) - it was wrongly applied everywhere in v12, breaking Windows/Android/regular Safari where screen dimensions overshoot the real chrome-shrunk viewport
+var CACHE_VERSION = 'raghu-v14'; // bumped: Liquid Glass visual reskin (temple-dusk palette) - CSS/markup only, all layout mechanics and app.js logic untouched
 
 var APP_SHELL = [
   './index.html',
