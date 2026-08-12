@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liquid Glass Reader</title>
+<style>
+  :root{
+    --blur: 18px;
+    --glass-fill: rgba(255,255,255,0.14);
+    --glass-fill-hover: rgba(255,255,255,0.22);
+    --glass-border: rgba(255,255,255,0.55);
+    --glass-shadow: rgba(0,0,0,0.25);
+    --text: #f5f6f8;
+    --header-h: 76px;
+    --footer-h: 92px;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html,body{
+    margin:0;
+    padding:0;
+    height:100%;
+    font-family: -apple-system, "SF Pro Display", "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    color: var(--text);
+  }
+
+  body{
+    position: relative;
+    background:
+      radial-gradient(1100px 600px at 12% 10%, #ff7a59 0%, transparent 55%),
+      radial-gradient(900px 700px at 85% 15%, #6a5cff 0%, transparent 55%),
+      radial-gradient(1000px 800px at 50% 100%, #17d1c4 0%, transparent 55%),
+      linear-gradient(160deg, #1a1730 0%, #241338 45%, #0d1a2b 100%);
+    overflow:hidden;
+  }
+
+  /* app shell: header + scrollable content + footer, all within one viewport-height column */
+  .app{
+    position:relative;
+    z-index:1;
+    height:100vh;
+    height:100dvh;
+    display:flex;
+    flex-direction:column;
+  }
+
+  body::before, body::after{
+    content:"";
+    position:fixed;
+    border-radius:50%;
+    filter: blur(2px);
+    opacity:0.5;
+    animation: float 16s ease-in-out infinite;
+    pointer-events:none;
+    z-index:0;
+  }
+  body::before{
+    width:260px; height:260px;
+    background: radial-gradient(circle at 30% 30%, #ffd66b, transparent 70%);
+    top:18%; left:8%;
+  }
+  body::after{
+    width:320px; height:320px;
+    background: radial-gradient(circle at 30% 30%, #56ffe0, transparent 70%);
+    bottom:14%; right:10%;
+    animation-delay: -8s;
+  }
+  @keyframes float{
+    0%,100%{ transform: translateY(0) translateX(0); }
+    50%{ transform: translateY(-30px) translateX(20px); }
+  }
+
+  /* ---------- glass base (shared by header, footer, buttons, menu) ---------- */
+  .glass{
+    background: var(--glass-fill);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(160%);
+    backdrop-filter: blur(var(--blur)) saturate(160%);
+    box-shadow:
+      0 1px 1px rgba(255,255,255,0.5) inset,
+      0 -6px 10px rgba(255,255,255,0.12) inset,
+      0 12px 28px var(--glass-shadow);
+    position:relative;
+    isolation:isolate;
+  }
+  .glass::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:inherit;
+    padding:1px;
+    background: linear-gradient(135deg, var(--glass-border), rgba(255,255,255,0.05) 40%, rgba(255,255,255,0.35) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events:none;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    flex: 0 0 var(--header-h);
+    z-index:20;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 0 24px;
+    border-radius: 0 0 22px 22px;
+  }
+  header h1{
+    margin:0;
+    font-size:18px;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    margin:2px 0 0;
+    font-size:12px;
+    opacity:0.6;
+  }
+  .header-inner{
+    text-align:center;
+  }
+  #page-badge{
+    position:absolute;
+    right:20px;
+    top:50%;
+    transform:translateY(-50%);
+    font-size:12px;
+    padding:6px 12px;
+    border-radius:999px;
+    background: rgba(255,255,255,0.12);
+  }
+
+  /* ---------- scrollable content ---------- */
+  main{
+    position:relative;
+    flex: 1 1 auto;
+    min-height:0;
+    overflow-y:auto;
+    padding: 28px 20px 40px;
+    scroll-behavior:smooth;
+  }
+  .content-wrap{
+    max-width:640px;
+    margin:0 auto;
+  }
+  .content-wrap .eyebrow{
+    text-transform:uppercase;
+    letter-spacing:0.16em;
+    font-size:12px;
+    opacity:0.6;
+    margin:0 0 10px;
+  }
+  .content-wrap h2{
+    font-size: clamp(26px, 4vw, 36px);
+    margin:0 0 18px;
+    letter-spacing:-0.02em;
+  }
+  .content-wrap p{
+    font-size:16px;
+    line-height:1.7;
+    opacity:0.85;
+    margin:0 0 18px;
+  }
+  .content-wrap.fade-in{
+    animation: fadeIn 0.4s ease both;
+  }
+  @keyframes fadeIn{
+    from{ opacity:0; transform: translateY(10px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+
+  /* ---------- footer nav ---------- */
+  footer{
+    flex: 0 0 var(--footer-h);
+    z-index:20;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    padding: 0 20px;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .nav-btn{
+    position:relative;
+    isolation:isolate;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    border:0;
+    cursor:pointer;
+    color: var(--text);
+    font-weight:600;
+    letter-spacing:-0.01em;
+    border-radius:999px;
+    background: var(--glass-fill);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(160%);
+    backdrop-filter: blur(var(--blur)) saturate(160%);
+    box-shadow:
+      0 1px 1px rgba(255,255,255,0.5) inset,
+      0 -6px 10px rgba(255,255,255,0.12) inset,
+      0 10px 22px var(--glass-shadow);
+    transition: transform 0.3s cubic-bezier(.2,.9,.3,1.3), background 0.3s ease, opacity 0.3s ease;
+  }
+  .nav-btn::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:inherit;
+    padding:1px;
+    background: linear-gradient(135deg, var(--glass-border), rgba(255,255,255,0.05) 40%, rgba(255,255,255,0.35) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events:none;
+  }
+  .nav-btn:hover{ background: var(--glass-fill-hover); transform: translateY(-2px); }
+  .nav-btn:active{ transform: translateY(0) scale(0.94); }
+  .nav-btn:focus-visible{ outline:2px solid #fff; outline-offset:3px; }
+  .nav-btn:disabled{
+    opacity:0.35;
+    cursor:not-allowed;
+    transform:none;
+  }
+  .nav-btn svg{ width:16px; height:16px; flex-shrink:0; }
+
+  .nav-btn.prev, .nav-btn.next{
+    padding:14px 22px;
+    font-size:15px;
+    flex:1;
+    max-width:150px;
+  }
+  .nav-btn.menu{
+    width:52px;
+    height:52px;
+    padding:0;
+    background: linear-gradient(135deg, rgba(255,95,109,0.5), rgba(94,140,255,0.35));
+  }
+  .nav-btn.menu:hover{
+    background: linear-gradient(135deg, rgba(255,95,109,0.65), rgba(94,140,255,0.5));
+  }
+
+  /* ---------- menu sheet ---------- */
+  .menu-overlay{
+    position:fixed;
+    inset:0;
+    background: rgba(5,5,15,0.45);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    z-index:30;
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 0.3s ease;
+  }
+  .menu-overlay.open{
+    opacity:1;
+    pointer-events:auto;
+  }
+
+  .menu-sheet{
+    position:fixed;
+    left:50%;
+    bottom: calc(var(--footer-h) + 20px);
+    transform: translate(-50%, 16px);
+    width:min(360px, calc(100% - 40px));
+    z-index:31;
+    padding:14px;
+    border-radius:24px;
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .menu-overlay.open + .menu-sheet,
+  .menu-sheet.open{
+    opacity:1;
+    transform: translate(-50%, 0);
+    pointer-events:auto;
+  }
+
+  .menu-sheet h3{
+    margin: 4px 8px 10px;
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:0.14em;
+    opacity:0.6;
+  }
+  .menu-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    width:100%;
+    text-align:left;
+    padding:12px 14px;
+    margin-bottom:6px;
+    border:0;
+    border-radius:14px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+    font-size:14px;
+    cursor:pointer;
+    transition: background 0.2s ease;
+  }
+  .menu-item:last-child{ margin-bottom:0; }
+  .menu-item:hover{ background: rgba(255,255,255,0.16); }
+  .menu-item.active{
+    background: linear-gradient(135deg, rgba(255,95,109,0.4), rgba(94,140,255,0.3));
+  }
+  .menu-item span.n{
+    opacity:0.5;
+    font-size:12px;
+  }
+
+  @media (max-width: 480px){
+    .nav-btn.prev span.label, .nav-btn.next span.label{ display:none; }
+    .nav-btn.prev, .nav-btn.next{ max-width:none; padding:14px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="app">
+    <header class="glass">
+      <div class="header-inner">
+        <h1>Liquid Glass Reader</h1>
+        <p>A small paged-content demo</p>
+      </div>
+      <div id="page-badge">1 / 5</div>
+    </header>
+
+    <main id="main">
+      <div class="content-wrap fade-in" id="content"></div>
+    </main>
+
+    <footer class="glass">
+      <button class="nav-btn prev" id="prevBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        <span class="label">Previous</span>
+      </button>
+
+      <button class="nav-btn menu" id="menuBtn" aria-label="Menu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+
+      <button class="nav-btn next" id="nextBtn">
+        <span class="label">Next</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </footer>
+  </div>
+
+  <div class="menu-overlay" id="menuOverlay"></div>
+  <div class="menu-sheet glass" id="menuSheet">
+    <h3>Jump to section</h3>
+    <div id="menuList"></div>
+  </div>
+
+<script>
+  const pages = [
+    {
+      eyebrow: "Section 01",
+      title: "What is Liquid Glass?",
+      body: [
+        "Liquid Glass is a translucent material language: surfaces that blur and refract whatever sits behind them, catching light like real glass rather than sitting as a flat, opaque panel.",
+        "The effect leans on a handful of layered ingredients — background blur, a soft tinted fill, a bright thin edge, and a moving specular highlight — combined so the surface feels physical instead of drawn."
+      ]
+    },
+    {
+      eyebrow: "Section 02",
+      title: "Why blur matters",
+      body: [
+        "Backdrop blur is what separates glass from a plain semi-transparent panel. Without it, content behind a translucent layer just looks faded; with it, the layer reads as a pane of material floating above the page.",
+        "A busy, colorful background is what makes the blur visible at all — flat backgrounds give the glass nothing to refract, so the effect quietly disappears."
+      ]
+    },
+    {
+      eyebrow: "Section 03",
+      title: "Edges and highlights",
+      body: [
+        "Real glass catches light unevenly along its rim. A thin gradient border — bright where light would hit, faint elsewhere — does the same job here, giving each surface a believable edge instead of a hard outline.",
+        "A diagonal highlight that sweeps across on hover mimics a reflection moving across a curved pane, which is what makes the buttons feel tactile rather than just tinted."
+      ]
+    },
+    {
+      eyebrow: "Section 04",
+      title: "Motion and restraint",
+      body: [
+        "Glass surfaces should move like something with a little weight: a gentle lift on hover, a quick compress on press, nothing that overshoots or lingers.",
+        "The trick is restraint — one highlight sweep, one lift, one press. Stacking more motion on top starts to look busy rather than physical."
+      ]
+    },
+    {
+      eyebrow: "Section 05",
+      title: "Building it yourself",
+      body: [
+        "The core recipe is short: backdrop-filter for blur, a low-opacity fill, a masked gradient border for the rim, and a couple of transitions for hover and press states.",
+        "From there it's mostly taste — how strong the blur is, how saturated the fill, how fast the highlight sweeps — tuned to whatever sits behind the glass."
+      ]
+    }
+  ];
+
+  const contentEl = document.getElementById('content');
+  const pageBadge = document.getElementById('page-badge');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const menuBtn = document.getElementById('menuBtn');
+  const menuOverlay = document.getElementById('menuOverlay');
+  const menuSheet = document.getElementById('menuSheet');
+  const menuList = document.getElementById('menuList');
+  const main = document.getElementById('main');
+
+  let current = 0;
+
+  function renderContent(){
+    const p = pages[current];
+    contentEl.classList.remove('fade-in');
+    void contentEl.offsetWidth; // restart animation
+    contentEl.innerHTML = `
+      <p class="eyebrow">${p.eyebrow}</p>
+      <h2>${p.title}</h2>
+      ${p.body.map(t => `<p>${t}</p>`).join('')}
+    `;
+    contentEl.classList.add('fade-in');
+
+    pageBadge.textContent = `${current + 1} / ${pages.length}`;
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current === pages.length - 1;
+
+    main.scrollTo({ top: 0, behavior: 'smooth' });
+    renderMenu();
+  }
+
+  function renderMenu(){
+    menuList.innerHTML = pages.map((p, i) => `
+      <button class="menu-item ${i === current ? 'active' : ''}" data-index="${i}">
+        ${p.title}
+        <span class="n">${String(i + 1).padStart(2, '0')}</span>
+      </button>
+    `).join('');
+
+    menuList.querySelectorAll('.menu-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        current = parseInt(btn.dataset.index, 10);
+        renderContent();
+        closeMenu();
+      });
+    });
+  }
+
+  function openMenu(){
+    menuOverlay.classList.add('open');
+    menuSheet.classList.add('open');
+    menuBtn.setAttribute('aria-expanded', 'true');
+  }
+  function closeMenu(){
+    menuOverlay.classList.remove('open');
+    menuSheet.classList.remove('open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+  }
+  function toggleMenu(){
+    menuSheet.classList.contains('open') ? closeMenu() : openMenu();
+  }
+
+  prevBtn.addEventListener('click', () => {
+    if (current > 0){ current--; renderContent(); }
+  });
+  nextBtn.addEventListener('click', () => {
+    if (current < pages.length - 1){ current++; renderContent(); }
+  });
+  menuBtn.addEventListener('click', toggleMenu);
+  menuOverlay.addEventListener('click', closeMenu);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMenu();
+    if (e.key === 'ArrowRight' && !nextBtn.disabled) nextBtn.click();
+    if (e.key === 'ArrowLeft' && !prevBtn.disabled) prevBtn.click();
+  });
+
+  renderContent();
+</script>
+
+</body>
+</html>
