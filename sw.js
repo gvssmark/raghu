@@ -7,7 +7,7 @@
 // Bump CACHE_VERSION whenever app.js/index.html/CSS changes, so old
 // clients pick up the new files promptly instead of waiting on the
 // background revalidation alone.
-var CACHE_VERSION = 'raghu-v12'; // bumped: screen-dimension-based --true-vh fix (window.innerHeight/dvh/position:fixed all proven unreliable at cold launch), footer reverted to flex child, diagnostics now show app version
+var CACHE_VERSION = 'raghu-v13'; // bumped: gated the --true-vh screen-based override to iOS standalone ONLY (navigator.standalone===true) - it was wrongly applied everywhere in v12, breaking Windows/Android/regular Safari where screen dimensions overshoot the real chrome-shrunk viewport
 
 var APP_SHELL = [
   './index.html',

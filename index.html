@@ -7,20 +7,30 @@
 
 <script>
   /* iOS WebKit bug, confirmed via on-device diagnostics (2026-08-11): at a
-     cold launch of a standalone/home-screen PWA, window.innerHeight,
+     cold launch of a standalone/home-screen PWA specifically, window.innerHeight,
      visualViewport.height, and CSS vh/dvh can all under-report the true
      viewport height by exactly safe-area-inset-top — as if
      viewport-fit=cover hadn't taken effect yet — and this persists
      indefinitely until a genuine orientation change forces WebKit to
      recompute it. Crucially, position:fixed's own bottom:0 anchor is tied
-     to this same buggy internal value, so it's not immune either — nothing
-     WebKit-native can be trusted here at cold launch.
-     screen.width/screen.height, however, were confirmed stable and correct
-     across both the broken and self-corrected (post-rotation) states — so
-     we use those, cross-referenced with current orientation, as the source
-     of truth for our own layout instead. Runs synchronously here in <head>,
-     before body exists, so the corrected value is ready before first paint. */
+     to this same buggy internal value, so it's not immune either.
+     screen.width/screen.height were confirmed stable and correct across
+     both the broken and self-corrected (post-rotation) states there — but
+     ONLY because standalone mode has no browser chrome, making screen
+     dimensions a valid stand-in for the viewport. In a REGULAR browser tab
+     (any platform, including plain Safari on iPhone), screen dimensions
+     are the full physical display and are LARGER than the real,
+     chrome-shrunk viewport — confirmed via diagnostics from Windows,
+     Android, and Mac/iPad Safari all showing plain dvh already working
+     correctly there. Applying this override outside standalone iOS mode
+     was an earlier mistake that pushed the footer off-screen everywhere
+     else. navigator.standalone exists ONLY in iOS Safari and is true ONLY
+     for a Home Screen launch, making it a precise gate for exactly (and
+     only) the one broken scenario. */
   (function () {
+    var isIOSStandalone = (window.navigator && window.navigator.standalone === true);
+    if (!isIOSStandalone) return; // everywhere else: plain CSS dvh already works correctly, untouched
+
     function computeTrueHeight() {
       var portrait = true;
       try {

@@ -5,7 +5,7 @@
   // top of every diagnostic report, and used to cache-bust the service worker
   // registration. Bump this alongside CACHE_VERSION in sw.js on every deploy
   // that changes app.js/index.html/sw.js.
-  var APP_VERSION = 'v12';
+  var APP_VERSION = 'v13';
 
   /* ---------------------------------------------------------
      0. DIAGNOSTICS — an in-memory activity log + environment
@@ -98,7 +98,8 @@
         ' — MISMATCH of ' + (window.innerHeight - env.docElementClientHeight) + 'px! html and body may be sized against different references — this can silently clip body\'s bottom edge, footer included, even when the footer\'s own position is correct.' :
         ' — match, OK') + ')');
     lines.push('body computed height: ' + env.bodyComputedHeight);
-    lines.push('--true-vh (JS-computed, screen-based): ' + (env.trueVh || '(not set)'));
+    lines.push('--true-vh (JS-computed, screen-based, iOS-standalone-only): ' +
+      (env.trueVh ? (env.trueVh + ' [active]') : '(not set — correct outside iOS standalone; falls back to plain dvh)'));
     lines.push('Safe area insets: top=' + env.safeAreaInsets.top + ' right=' + env.safeAreaInsets.right +
       ' bottom=' + env.safeAreaInsets.bottom + ' left=' + env.safeAreaInsets.left);
     lines.push('');
