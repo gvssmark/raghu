@@ -1,0 +1,17 @@
+{
+  "name": "రఘువంశము — Raghuvamsha Reader",
+  "short_name": "రఘువంశము",
+  "description": "Mahakavi Kalidasa's Raghuvamsha with Telugu commentary — Padavibhaga, Anvyaya, Akanksha, Bhava, Vyakarana.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF6EC",
+  "theme_color": "#FBF6EC",
+  "lang": "te",
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
